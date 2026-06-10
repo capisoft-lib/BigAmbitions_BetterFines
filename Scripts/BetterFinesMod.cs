@@ -1,0 +1,74 @@
+using System;
+using System.Threading.Tasks;
+using BaPlayerLocation.Subscriber;
+using BAModAPI;
+using UnityEngine;
+
+[assembly: RegisterModClass(typeof(BetterFines.BetterFinesMod))]
+
+namespace BetterFines
+{
+    [ModEntryOnCityLoad]
+    public sealed class BetterFinesMod : IModBigAmbitions
+    {
+        private IDisposable _locationSubscription;
+        private GameObject _driverObject;
+
+        public string[] RelativeAssetBundlePaths => Array.Empty<string>();
+
+        public Task OnLoadAsync(ModContext context)
+        {
+            ModLog.Info(
+                "BetterFines city load | mod_id=" + context.ModId +
+                " | required_mod=LIB_BaPlayerLocation");
+
+            BetterFinesConfig.EnsureReadyForRuntime(context);
+            FineRecordStore.Initialize(context);
+            DrivingLicenseEnforcer.Initialize();
+            TrafficDataStore.Initialize(context.ModRootPath);
+            BetterFinesState.Reset();
+            SpeedWarningBanner.EnsureCreated();
+            FinesStatusPanel.EnsureCreated();
+
+            _locationSubscription = PlayerLocationSubscriber.SubscribeWhenActive(OnPlayerLocationChanged);
+
+            _driverObject = new GameObject("BetterFines_Driver");
+            UnityEngine.Object.DontDestroyOnLoad(_driverObject);
+            _driverObject.AddComponent<BetterFinesDriver>();
+            _driverObject.AddComponent<TrafficDataBootstrap>();
+            _driverObject.AddComponent<TrafficLightDebugVisualizer>();
+
+            ModLog.Info("BetterFines ready (speeding + red lights on, wrong-way off by default).");
+            return Task.CompletedTask;
+        }
+
+        public Task OnUnloadAsync()
+        {
+            _locationSubscription?.Dispose();
+            _locationSubscription = null;
+
+            if (_driverObject != null)
+            {
+                UnityEngine.Object.Destroy(_driverObject);
+                _driverObject = null;
+            }
+
+            BetterFinesState.Reset();
+            TrafficDataStore.Invalidate();
+            DrivingLicenseEnforcer.Shutdown();
+            FineRecordStore.Shutdown();
+            ModLog.Shutdown();
+            SpeedWarningBanner.Destroy();
+            RedLightCameraFlash.Destroy();
+            FinesStatusPanel.Destroy();
+
+            ModLog.Info("BetterFines unloaded.");
+            return Task.CompletedTask;
+        }
+
+        private static void OnPlayerLocationChanged(PlayerLocationSnapshot snapshot)
+        {
+            BetterFinesState.ApplySnapshot(snapshot);
+        }
+    }
+}

@@ -1,0 +1,44 @@
+# Build outputs
+bin/
+obj/
+Obj/
+Output/
+Library/
+Temp/
+Logs/
+*.dll
+*.pdb
+*.exe
+
+# Unity / IDE generated
+*.csproj
+*.sln
+*.user
+*.userprefs
+.vs/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets and local config — never commit
+.env
+.env.*
+*.pem
+*.key
+*.pfx
+local.paths.json
+*.local.props
+secrets/
+
+# Player-local mod data
+better_fines_config.json
+
+# Debug / extraction artifacts
+tools/debug-dumps/
+*_dump.csv
+
+# Logs and scratch
+*.log
+build-*.log

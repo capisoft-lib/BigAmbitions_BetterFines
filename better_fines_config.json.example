@@ -1,0 +1,61 @@
+{
+
+  "speeding_enabled": true,
+
+  "speeding_fine_amount": 150,
+
+  "speeding_min_delay_sec": 10,
+
+  "speeding_over_limit_kmh": 5,
+
+  "speeding_trigger_delay_sec": 3,
+
+  "wrong_way_enabled": false,
+
+  "wrong_way_fine_amount": 200,
+
+  "wrong_way_min_delay_sec": 10,
+
+  "wrong_way_min_speed_kmh": 8,
+
+  "wrong_way_trigger_delay_sec": 3,
+
+  "red_light_enabled": true,
+
+  "red_light_fine_amount": 250,
+
+  "red_light_min_delay_sec": 5,
+
+  "red_light_min_speed_kmh": 8,
+
+  "red_light_orange_fine": false,
+
+  "road_lookup_max_m": 40,
+
+  "red_light_lookup_max_m": 35,
+
+  "recidivism_enabled": true,
+
+  "fine_lifetime_days": 5,
+
+  "recidivism_tier1_count": 3,
+
+  "recidivism_tier1_percent": 50,
+
+  "recidivism_tier2_count": 5,
+
+  "recidivism_tier2_percent": 100,
+
+  "license_revoke_enabled": true,
+
+  "license_revoke_count": 10,
+
+  "log_enabled": true,
+
+  "debug_red_light": true,
+
+  "debug_traffic_zones": true
+
+}
+
+
