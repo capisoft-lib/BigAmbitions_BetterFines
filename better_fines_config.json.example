@@ -4,6 +4,7 @@
   "speeding_enabled": true,
   "wrong_way_enabled": true,
   "red_light_enabled": true,
-  "orange_light_enabled": false,
-  "visual_flash_enabled": true
+  "red_light_orange_fine": false,
+  "visual_flash_enabled": true,
+  "license_revoke_enabled": true
 }
