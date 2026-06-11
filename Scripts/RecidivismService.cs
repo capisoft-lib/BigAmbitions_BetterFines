@@ -36,11 +36,11 @@ namespace BetterFines
             return GetSurchargePercent(nextCount);
         }
 
-        internal static void RegisterIssuedFine(ViolationType type, int chargedAmount)
+        internal static bool RegisterIssuedFine(ViolationType type, int chargedAmount)
         {
             var save = SaveGameManager.Current;
             if (save == null)
-                return;
+                return false;
 
             var activeAfter = FineRecordStore.ActiveCount + 1;
             FineRecordStore.AddFine(
@@ -51,16 +51,18 @@ namespace BetterFines
                 Mathf.RoundToInt(save.Minute),
                 BetterFinesConfig.FineLifetimeDays);
 
-            if (BetterFinesConfig.LicenseRevokeEnabled &&
-                activeAfter >= BetterFinesConfig.LicenseRevokeCount)
-            {
-                FineRecordStore.SetLicenseSuspended(true);
-                DrivingLicenseEnforcer.OnLicenseSuspended();
-                ModLog.Info("Driving license suspended | active_fines=" + activeAfter);
-            }
+            if (!BetterFinesConfig.LicenseRevokeEnabled ||
+                activeAfter < BetterFinesConfig.LicenseRevokeCount)
+                return false;
+
+            FineRecordStore.SetLicenseSuspended(true);
+            DrivingLicenseEnforcer.OnLicenseSuspended();
+            ModLog.Info("Driving license suspended | active_fines=" + activeAfter);
+            return true;
         }
 
-        internal static bool IsLicenseSuspended => FineRecordStore.LicenseSuspended;
+        internal static bool IsLicenseSuspended =>
+            BetterFinesConfig.LicenseRevokeEnabled && FineRecordStore.LicenseSuspended;
 
         internal static int DaysUntilLicenseRestored()
         {

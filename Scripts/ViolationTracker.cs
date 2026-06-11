@@ -1,7 +1,5 @@
 using BaPlayerLocation.Subscriber;
 
-using GleyTrafficSystem;
-
 using UnityEngine;
 
 
@@ -14,7 +12,8 @@ namespace BetterFines
 
     {
 
-        private readonly RoadSpeedService _roadSpeed = new RoadSpeedService();
+        private readonly WrongWayDetector _wrongWay = new WrongWayDetector();
+        private readonly SpeedLimitTracker _speedLimit = new SpeedLimitTracker();
         private readonly RedLightCrossingDetector _redLightCrossings = new RedLightCrossingDetector();
 
 
@@ -63,7 +62,8 @@ namespace BetterFines
             _speedBelowThresholdSince = -1f;
             _wrongWayClearSince = -1f;
 
-            _roadSpeed.Invalidate();
+            _wrongWay.Invalidate();
+            _speedLimit.Reset();
             _redLightCrossings.Reset();
             VehicleGeometry.ClearCache();
 
@@ -158,17 +158,9 @@ namespace BetterFines
                 return;
             }
 
-            if (!_roadSpeed.TryGetRoadSpeedLimit(
-                    snapshot.Position,
-                    BetterFinesConfig.RoadLookupMaxM,
-                    out var limitKmh))
-            {
-                if (_speedViolationSince < 0f)
-                    ClearSpeedViolation();
-                return;
-            }
-
-            var threshold = limitKmh + BetterFinesConfig.GraceKmh;
+            _speedLimit.UpdateForPosition(snapshot.Position);
+            var limitKmh = _speedLimit.ActiveLimitKmh;
+            var threshold = BetterFinesConfig.GetSpeedingThresholdKmh(limitKmh);
 
             if (speedKmh <= threshold)
             {
@@ -212,7 +204,9 @@ namespace BetterFines
 
 
 
-            if (!FineService.TryChargeFine(ViolationType.Speeding, BetterFinesConfig.SpeedFineAmount))
+            if (!FineService.TryChargeFine(
+                    ViolationType.Speeding,
+                    FineAmountResolver.Resolve(ViolationType.Speeding, BetterFinesConfig.FixedFineAmount)))
 
                 return;
 
@@ -260,11 +254,11 @@ namespace BetterFines
 
 
 
-            if (!_roadSpeed.TryIsDrivingWrongWay(
+            if (!_wrongWay.TryIsDrivingWrongWay(
                     snapshot.Position,
                     snapshot.HeadingDeg,
                     BetterFinesConfig.RoadLookupMaxM,
-                    out var waypoint) || waypoint == null)
+                    out var segmentId) || segmentId < 0)
             {
                 if (_wrongWayViolationSince < 0f)
                 {
@@ -306,7 +300,9 @@ namespace BetterFines
 
 
 
-            if (!FineService.TryChargeFine(ViolationType.WrongWay, BetterFinesConfig.WrongWayFineAmount))
+            if (!FineService.TryChargeFine(
+                    ViolationType.WrongWay,
+                    FineAmountResolver.Resolve(ViolationType.WrongWay, BetterFinesConfig.FixedFineAmount)))
 
                 return;
 
@@ -318,7 +314,7 @@ namespace BetterFines
 
             ModLog.Info(
 
-                "Wrong-way ticket | waypoint=" + waypoint.name +
+                "Wrong-way ticket | segment=" + segmentId +
 
                 " | speed=" + BetterFinesState.SpeedKmh.ToString("0"));
 
@@ -350,9 +346,9 @@ namespace BetterFines
             if (!violationFound)
                 return;
 
-            RedLightCameraFlash.Play();
-
-            if (!FineService.TryChargeFine(ViolationType.RedLight, BetterFinesConfig.RedLightFineAmount))
+            if (!FineService.TryChargeFine(
+                    ViolationType.RedLight,
+                    FineAmountResolver.Resolve(ViolationType.RedLight, BetterFinesConfig.FixedFineAmount)))
             {
                 ModLog.Warn("Red light fine charge failed after visual crossing.");
                 return;

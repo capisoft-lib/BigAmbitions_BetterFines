@@ -1,1 +1,8 @@
 LIB_BaPlayerLocation
+
+Workshop publish checklist:
+1. Upload LIB_BaPlayerLocation first (ModId must match exactly).
+2. Upload BetterFines and state LIB BA Player Location 0.11.1+ is required in the Workshop description.
+3. Players must subscribe to AND enable both mods.
+
+BetterFines does not probe player position itself. Fines need LIB_BaPlayerLocation for speed and location.

@@ -17,11 +17,10 @@ namespace BetterFines
 
         private const string RootName = "BetterFines_OverSpeedBanner";
         private const float PanelWidth = 500f;
-        private const float PanelHeight = 56f;
+        private const float PanelHeight = 64f;
         private const float CenterYOffset = -140f;
-
-        private static readonly Color WarningColor = new Color(0.86f, 0.18f, 0.14f, 1f);
-        private static readonly Color PanelTint = new Color(0.08f, 0.08f, 0.1f, 0.82f);
+        private const float LabelPaddingX = 18f;
+        private const float LabelPaddingY = 12f;
 
         private static GameObject _root;
         private static GameObject _panel;
@@ -57,7 +56,7 @@ namespace BetterFines
 
             _panelImage = _panel.AddComponent<Image>();
             _panelImage.raycastTarget = false;
-            _panelImage.color = PanelTint;
+            BaGameUiChrome.ApplyPanelBackground(_panelImage);
 
             var labelGo = new GameObject("Label", typeof(RectTransform));
             labelGo.transform.SetParent(_panel.transform, false);
@@ -65,19 +64,11 @@ namespace BetterFines
             var labelRect = labelGo.GetComponent<RectTransform>();
             labelRect.anchorMin = Vector2.zero;
             labelRect.anchorMax = Vector2.one;
-            labelRect.offsetMin = new Vector2(18f, 10f);
-            labelRect.offsetMax = new Vector2(-18f, -10f);
+            labelRect.offsetMin = new Vector2(LabelPaddingX, LabelPaddingY);
+            labelRect.offsetMax = new Vector2(-LabelPaddingX, -LabelPaddingY);
 
             _label = labelGo.AddComponent<TextMeshProUGUI>();
-            _label.fontSize = 18f;
-            _label.fontStyle = FontStyles.Bold;
-            _label.color = WarningColor;
-            _label.alignment = TextAlignmentOptions.Center;
-            _label.raycastTarget = false;
-            _label.enableWordWrapping = false;
-            _label.overflowMode = TextOverflowModes.Truncate;
-            BaGameUiChrome.ApplyBodyStyle(_label, 1f);
-            _label.color = WarningColor;
+            BaGameUiChrome.ApplyWarningBannerStyle(_label);
 
             SetVisible(false);
         }
@@ -184,27 +175,17 @@ namespace BetterFines
 
         private static void SetVisible(bool visible)
         {
-            if (_visible == visible)
-                return;
-
-            _visible = visible;
-            if (_root == null)
-                return;
-
             if (!visible)
             {
+                _visible = false;
+                if (_root == null)
+                    return;
+
                 if (_label != null)
                 {
                     _label.SetText(string.Empty);
                     _label.ForceMeshUpdate(true);
                     _label.enabled = false;
-                }
-
-                if (_panelImage != null)
-                {
-                    var tint = PanelTint;
-                    tint.a = 0f;
-                    _panelImage.color = tint;
                 }
 
                 if (_panel != null)
@@ -214,11 +195,18 @@ namespace BetterFines
                 return;
             }
 
+            if (_visible && _root != null && _root.activeSelf)
+                return;
+
+            _visible = true;
+            if (_root == null)
+                return;
+
             _root.SetActive(true);
             if (_panel != null)
                 _panel.SetActive(true);
             if (_panelImage != null)
-                _panelImage.color = PanelTint;
+                BaGameUiChrome.ApplyPanelBackground(_panelImage);
             if (_label != null)
                 _label.enabled = true;
             if (_canvas != null)

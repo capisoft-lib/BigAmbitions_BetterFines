@@ -98,6 +98,22 @@ namespace BetterFines
             ApplyTitleFont(text);
         }
 
+        internal static void ApplyPanelBackground(Image image) => ApplyPanelBg(image);
+
+        internal static void ApplyWarningBannerStyle(TextMeshProUGUI text, float scale = 1f)
+        {
+            text.fontSize = 18f * scale;
+            text.fontStyle = FontStyles.Bold;
+            text.color = WarningTextColor;
+            text.alignment = (TextAlignmentOptions)((int)HorizontalAlignmentOptions.Center
+                | (int)VerticalAlignmentOptions.Middle);
+            text.raycastTarget = false;
+            text.enableWordWrapping = false;
+            text.overflowMode = TextOverflowModes.Overflow;
+            text.margin = Vector4.zero;
+            ApplyTitleFont(text);
+        }
+
         internal static Vector2 GetFallbackScreenPosition(float offsetY)
         {
             var y = offsetY > 0f ? Mathf.Max(ScreenMarginMinY, offsetY) : ScreenMarginMinY;

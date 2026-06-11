@@ -7,6 +7,7 @@
 | **Game** | Big Ambitions EA **0.11 Experimental** |
 | **Languages** | All **22** Big Ambitions interface languages |
 | **Requires** | [`LIB_BaPlayerLocation`](https://github.com/capisoft-lib/BigAmbitions_LIB_BaPlayerLocation) |
+| **Recommended** | [`Speedometer`](https://github.com/capisoft-lib/BigAmbitions_Speedometer) — optional HUD to see your speed while fines are enforced |
 | **Author** | [capisoft-lib](https://github.com/capisoft-lib) — community mod, not affiliated with Hovgaard Games |
 
 ## Features
@@ -29,7 +30,7 @@ better_fines_config.json.example      runtime config template
 
 ## Development
 
-Requires [Big Ambitions Modding SDK](https://github.com/HovgaardGames/BigAmbitionsModding) (Unity **2022.3.62f2**) and [`LIB_BaPlayerLocation`](https://github.com/capisoft-lib/BigAmbitions_LIB_BaPlayerLocation).
+Requires [Big Ambitions Modding SDK](https://github.com/HovgaardGames/BigAmbitionsModding) (Unity **2022.3.62f2**) and [`LIB_BaPlayerLocation`](https://github.com/capisoft-lib/BigAmbitions_LIB_BaPlayerLocation). [`Speedometer`](https://github.com/capisoft-lib/BigAmbitions_Speedometer) is optional but recommended for players.
 
 ```bash
 git clone https://github.com/capisoft-lib/BigAmbitions_BetterFines.git

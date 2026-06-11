@@ -22,6 +22,7 @@ namespace BetterFines
         internal static void Initialize(string modRootPath)
         {
             TrafficApproachZoneCsvExporter.Initialize(modRootPath);
+            RoadSpeedLimitCsvExporter.Initialize(modRootPath);
             TrafficLightVisualIndex.Initialize(modRootPath);
         }
 
@@ -66,7 +67,10 @@ namespace BetterFines
 
                 _loadCompleted = true;
                 TrafficLightVisualIndex.TryLoadOnce(_stops);
-                TrafficApproachZoneCsvExporter.TryExportOnce(_stops);
+                if (BetterFinesConfig.DumpTrafficApproachZones)
+                    TrafficApproachZoneCsvExporter.TryExportOnce(_stops);
+                if (BetterFinesConfig.DumpRoadSpeedLimits)
+                    RoadSpeedLimitCsvExporter.TryExportOnce(array);
                 ModLog.Info("Traffic data ready | stops=" + _stops.StopCount +
                             " | zones=" + _stops.ZoneCount +
                             " | visual_lights=" + TrafficLightVisualIndex.Count);
@@ -98,6 +102,7 @@ namespace BetterFines
             _stops.Clear();
             TrafficLightVisualIndex.Invalidate();
             TrafficApproachZoneCsvExporter.Shutdown();
+            RoadSpeedLimitCsvExporter.Shutdown();
         }
     }
 }

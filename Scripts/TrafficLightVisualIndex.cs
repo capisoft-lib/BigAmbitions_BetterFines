@@ -123,6 +123,7 @@ namespace BetterFines
             if (_loaded)
                 return;
 
+            BetterFinesConfig.ReloadIfChanged();
             _loaded = true;
             var result = new List<VisualLight>(256);
             var rawTagged = AddTaggedLights(result);
@@ -131,8 +132,11 @@ namespace BetterFines
             var rawReflectionMatches = AddReflectionCandidates(stops, result);
 
             _lights = result.ToArray();
-            ExportCandidates();
-            ExportGroups();
+            if (BetterFinesConfig.DumpTrafficLightVisuals)
+            {
+                ExportCandidates();
+                ExportGroups();
+            }
 
             ModLog.Info(
                 "Traffic light visual index | tagged_raw=" + rawTagged +

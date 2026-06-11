@@ -25,10 +25,10 @@ namespace BetterFines
             BetterFinesConfig.EnsureReadyForRuntime(context);
             FineRecordStore.Initialize(context);
             DrivingLicenseEnforcer.Initialize();
+            SpeedZone80Index.Initialize(context.ModRootPath);
+            RoadDirectionIndex.Initialize(context.ModRootPath);
             TrafficDataStore.Initialize(context.ModRootPath);
             BetterFinesState.Reset();
-            SpeedWarningBanner.EnsureCreated();
-            FinesStatusPanel.EnsureCreated();
 
             _locationSubscription = PlayerLocationSubscriber.SubscribeWhenActive(OnPlayerLocationChanged);
 
@@ -38,7 +38,7 @@ namespace BetterFines
             _driverObject.AddComponent<TrafficDataBootstrap>();
             _driverObject.AddComponent<TrafficLightDebugVisualizer>();
 
-            ModLog.Info("BetterFines ready (speeding + red lights on, wrong-way off by default).");
+            ModLog.Info("BetterFines ready (speeding, red lights, wrong-way on by default).");
             return Task.CompletedTask;
         }
 
@@ -54,6 +54,8 @@ namespace BetterFines
             }
 
             BetterFinesState.Reset();
+            SpeedZone80Index.Invalidate();
+            RoadDirectionIndex.Invalidate();
             TrafficDataStore.Invalidate();
             DrivingLicenseEnforcer.Shutdown();
             FineRecordStore.Shutdown();

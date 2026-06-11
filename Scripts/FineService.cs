@@ -4,6 +4,7 @@ using BigAmbitions.SaveSystem.Legacy;
 using Entities;
 using Localizor;
 using UI.Smartphone.Apps.Contacts;
+using UnityEngine;
 
 namespace BetterFines
 {
@@ -42,8 +43,10 @@ namespace BetterFines
                 if (!GameManager.ChangeMoneySafe(-amount, info, force: true))
                     return false;
 
-                RecidivismService.RegisterIssuedFine(type, amount);
+                var licenseSuspended = RecidivismService.RegisterIssuedFine(type, amount);
                 TrySendGovernmentFineMessage(type, amount, vehicleInstance);
+                if (licenseSuspended)
+                    TrySendLicenseSuspendedMessage(RecidivismService.DaysUntilLicenseRestored());
                 ModLog.Info(
                     "Fine issued | type=" + type +
                     " | base=" + baseAmount +
@@ -58,44 +61,105 @@ namespace BetterFines
             }
         }
 
+        internal static void TrySendLicenseSuspendedMessage(int daysRemaining)
+        {
+            if (!BetterFinesConfig.LicenseRevokeEnabled)
+                return;
+
+            var save = SaveGameManager.Current;
+            if (save == null)
+                return;
+
+            TrySendGovernmentMessage(
+                "betterfines:sms_government_license_suspended",
+                new Dictionary<string, string>
+                {
+                    { "hour", $"{save.Hour:00}" },
+                    { "minute", $"{save.Minute:00}" },
+                    { "day", save.Day.ToString() },
+                    { "days", LocaleFormat.Integer(Mathf.Max(1, daysRemaining)) }
+                },
+                isLicenseMessage: true);
+        }
+
+        internal static void TrySendLicenseRestoredMessage()
+        {
+            if (!BetterFinesConfig.LicenseRevokeEnabled)
+                return;
+
+            var save = SaveGameManager.Current;
+            if (save == null)
+                return;
+
+            TrySendGovernmentMessage(
+                "betterfines:sms_government_license_restored",
+                new Dictionary<string, string>
+                {
+                    { "hour", $"{save.Hour:00}" },
+                    { "minute", $"{save.Minute:00}" },
+                    { "day", save.Day.ToString() }
+                },
+                isLicenseMessage: true);
+        }
+
         private static void TrySendGovernmentFineMessage(
             ViolationType type,
             int amount,
             VehicleInstance vehicleInstance)
         {
+            var save = SaveGameManager.Current;
+            if (save == null)
+                return;
+
+            var messageKey = type switch
+            {
+                ViolationType.RedLight => "betterfines:sms_government_red_light_ticket",
+                ViolationType.WrongWay => "betterfines:sms_government_wrong_way_ticket",
+                _ => "betterfines:sms_government_speeding_ticket"
+            };
+
+            TrySendGovernmentMessage(
+                messageKey,
+                new Dictionary<string, string>
+                {
+                    { "vehicleTypeName", vehicleInstance.vehicleTypeName },
+                    { "hour", $"{save.Hour:00}" },
+                    { "minute", $"{save.Minute:00}" },
+                    { "day", save.Day.ToString() },
+                    { "amount", LocaleFormat.Money(amount) }
+                },
+                playFlash: true);
+        }
+
+        private static void TrySendGovernmentMessage(
+            string messageKey,
+            Dictionary<string, string> messageData,
+            bool playFlash = false,
+            bool isLicenseMessage = false)
+        {
             try
             {
-                var save = SaveGameManager.Current;
-                if (save == null)
+                if (SaveGameManager.Current == null)
                     return;
+
+                messageData["department"] = isLicenseMessage
+                    ? ModUiText.SmsDepartmentMotorVehicles
+                    : ModUiText.SmsDepartmentTraffic;
 
                 var contact = Contact.GetContact(
                     GovernmentContactId,
                     ContactCategoryName.General,
                     GovernmentContactCategory);
 
-                var messageKey = type switch
-                {
-                    ViolationType.RedLight => "betterfines:sms_government_red_light_ticket",
-                    ViolationType.WrongWay => "betterfines:sms_government_wrong_way_ticket",
-                    _ => "betterfines:sms_government_speeding_ticket"
-                };
-
-                var messageData = new Dictionary<string, string>
-                {
-                    { "vehicleTypeName", vehicleInstance.vehicleTypeName },
-                    { "hour", $"{save.Hour:00}" },
-                    { "minute", $"{save.Minute:00}" },
-                    { "day", save.Day.ToString() },
-                    { "amount", amount.ToString("0") }
-                };
+                if (playFlash)
+                    RedLightCameraFlash.TryPlay();
 
                 GameManager.SendTextMessage(contact, messageKey, messageData);
                 ContactsHelper.ShowNewMessageNotification(contact);
             }
             catch (Exception ex)
             {
-                ModLog.Warn("Failed to send government fine SMS: " + ex.Message);
+                ModLog.Warn("Failed to send government SMS: " + ex.Message);
             }
         }
     }

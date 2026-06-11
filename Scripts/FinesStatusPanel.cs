@@ -66,7 +66,7 @@ namespace BetterFines
             var visible = ShouldShow();
             if (!visible)
             {
-                if (_lastVisible && _root != null)
+                if (_root != null && _root.activeSelf)
                     _root.SetActive(false);
                 _lastVisible = false;
                 return;

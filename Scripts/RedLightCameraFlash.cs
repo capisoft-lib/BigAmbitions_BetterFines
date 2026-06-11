@@ -3,7 +3,7 @@ using UnityEngine.UI;
 
 namespace BetterFines
 {
-    /// <summary>Full-screen white flash when a red-light camera catches the player.</summary>
+    /// <summary>Full-screen white flash shown when a traffic fine SMS is issued.</summary>
     internal static class RedLightCameraFlash
     {
         private const string RootName = "BetterFines_RedLightCameraFlash";
@@ -17,6 +17,21 @@ namespace BetterFines
         private static float _fadeStartAt = -1f;
         private static float _fadeEndAt = -1f;
         private static bool _active;
+
+        internal static void TryPlay()
+        {
+            if (!BetterFinesConfig.VisualFlashEnabled)
+                return;
+
+            try
+            {
+                Play();
+            }
+            catch (System.Exception ex)
+            {
+                ModLog.Warn("Visual flash failed: " + ex.Message);
+            }
+        }
 
         internal static void Play()
         {

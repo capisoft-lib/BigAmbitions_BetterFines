@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Text;
@@ -12,38 +13,30 @@ namespace BetterFines
     {
         private const string ConfigFileName = "better_fines_config.json";
 
+        private const float SpeedingOverLimitPercent = 10f;
+        internal const float SpeedingMinDelaySec = 5f;
+        internal const float SpeedHoldSec = 3f;
+        internal const float WrongWayMinDelaySec = 5f;
+        internal const float WrongWayHoldSec = 3f;
+
         private const string SpeedingEnabledKey = "speeding_enabled";
-        private const string SpeedingFineKey = "speeding_fine_amount";
-        private const string SpeedingMinDelayKey = "speeding_min_delay_sec";
-        private const string SpeedingOverLimitKey = "speeding_over_limit_kmh";
-        private const string SpeedingTriggerDelayKey = "speeding_trigger_delay_sec";
-
+        private const string VisualFlashEnabledKey = "visual_flash_enabled";
         private const string RedLightEnabledKey = "red_light_enabled";
-        private const string RedLightFineKey = "red_light_fine_amount";
-        private const string RedLightMinDelayKey = "red_light_min_delay_sec";
-        private const string RedLightMinSpeedKey = "red_light_min_speed_kmh";
         private const string RedLightOrangeFineKey = "red_light_orange_fine";
-
+        private const string LicenseSuspensionEnabledKey = "license_suspension_enabled";
         private const string WrongWayEnabledKey = "wrong_way_enabled";
-        private const string WrongWayFineKey = "wrong_way_fine_amount";
-        private const string WrongWayMinDelayKey = "wrong_way_min_delay_sec";
-        private const string WrongWayMinSpeedKey = "wrong_way_min_speed_kmh";
-        private const string WrongWayTriggerDelayKey = "wrong_way_trigger_delay_sec";
+        private const string FineAmountModeKey = "fine_amount_mode";
+        private const string FineMarginPercentKey = "fine_margin_percent";
+        private const string FixedFineAmountKey = "fixed_fine_amount";
         private const string ValueDollarsKey = "betterfines_options_value_dollars";
-        private const string ValueSecondsKey = "betterfines_options_value_seconds";
-        private const string ValueKmhKey = "betterfines_options_value_kmh";
-        private const string ValueDaysKey = "betterfines_options_value_days";
         private const string ValuePercentKey = "betterfines_options_value_percent";
-        private const string ValueCountKey = "betterfines_options_value_count";
+        private const int DefaultFixedFineAmount = 200;
 
-        private const string RecidivismEnabledKey = "recidivism_enabled";
-        private const string FineLifetimeDaysKey = "fine_lifetime_days";
-        private const string RecidivismTier1CountKey = "recidivism_tier1_count";
-        private const string RecidivismTier1PercentKey = "recidivism_tier1_percent";
-        private const string RecidivismTier2CountKey = "recidivism_tier2_count";
-        private const string RecidivismTier2PercentKey = "recidivism_tier2_percent";
-        private const string LicenseRevokeEnabledKey = "license_revoke_enabled";
-        private const string LicenseRevokeCountKey = "license_revoke_count";
+        private static readonly string[] FineAmountModeChoices =
+        {
+            "betterfines_options_fine_mode_fixed",
+            "betterfines_options_fine_mode_margin_percent"
+        };
 
         private static ModContext _context;
         private static string _configPath;
@@ -51,19 +44,15 @@ namespace BetterFines
 
         internal static bool EnforceSpeeding { get; private set; } = true;
         internal static bool EnforceRedLights { get; private set; } = true;
-        internal static float GraceKmh { get; private set; } = 5f;
-        internal static float SpeedHoldSec { get; private set; } = 3f;
-        internal static int SpeedFineAmount { get; private set; } = 150;
-        internal static int RedLightFineAmount { get; private set; } = 250;
-        internal static float SpeedingMinDelaySec { get; private set; } = 10f;
+        internal static FineAmountMode FineAmountMode { get; private set; } = FineAmountMode.Fixed;
+        internal static float FineMarginPercent { get; private set; } = 10f;
+        internal static int FixedFineAmount { get; private set; } = DefaultFixedFineAmount;
         internal static float RedLightMinDelaySec { get; private set; } = 5f;
-        internal static float RedLightMinSpeedKmh { get; private set; } = 8f;
+        internal static float RedLightMinSpeedKmh { get; private set; } = 3f;
+        internal static bool VisualFlashEnabled { get; private set; } = true;
         internal static bool RedLightOrangeFine { get; private set; }
-        internal static bool EnforceWrongWay { get; private set; }
-        internal static int WrongWayFineAmount { get; private set; } = 200;
-        internal static float WrongWayMinDelaySec { get; private set; } = 10f;
+        internal static bool EnforceWrongWay { get; private set; } = true;
         internal static float WrongWayMinSpeedKmh { get; private set; } = 8f;
-        internal static float WrongWayHoldSec { get; private set; } = 3f;
         internal static float RoadLookupMaxM { get; private set; } = 40f;
         internal static float RedLightLookupMaxM { get; private set; } = 35f;
         internal static bool RecidivismEnabled { get; private set; } = true;
@@ -78,7 +67,15 @@ namespace BetterFines
         internal static bool DebugRedLight { get; private set; }
         internal static bool DebugTrafficZones { get; private set; }
 
+        /// <summary>Dev-only CSV dumps (default off; never written by Save/BuildJson).</summary>
+        internal static bool DumpRoadSpeedLimits { get; private set; }
+        internal static bool DumpTrafficApproachZones { get; private set; }
+        internal static bool DumpTrafficLightVisuals { get; private set; }
+
         internal static bool ShouldDrawTrafficZones => DebugTrafficZones || DebugRedLight;
+
+        internal static float GetSpeedingThresholdKmh(float limitKmh) =>
+            limitKmh * (1f + SpeedingOverLimitPercent / 100f);
 
         internal static void Initialize(ModContext context)
         {
@@ -127,6 +124,7 @@ namespace BetterFines
 
         internal static void Shutdown()
         {
+            BetterFinesOptionsScheduler.Shutdown();
             if (_context != null)
                 OptionsService.RemoveModOptions(_context.ModId);
             _context = null;
@@ -134,6 +132,8 @@ namespace BetterFines
             _lastConfigWriteUtc = DateTime.MinValue;
             ResetDefaults();
         }
+
+        internal static void RefreshOptions() => RegisterOptions();
 
         private static void RegisterOptions()
         {
@@ -144,145 +144,87 @@ namespace BetterFines
 
             var options = new ModOptions()
                 .AddHeader("betterfines_options_header")
+                .AddDropdown(FineAmountModeKey, "betterfines_options_fine_mode",
+                    FineAmountModeChoices, (int)FineAmountMode, value =>
+                {
+                    OnFineAmountModeChanged(value);
+                });
+
+            if (FineAmountMode == FineAmountMode.Fixed)
+            {
+                options.AddSlider(FixedFineAmountKey, "betterfines_options_fixed_fine_amount", 25, 1000,
+                    FixedFineAmount, value =>
+                {
+                    FixedFineAmount = Mathf.Clamp(value, 25, 1000);
+                    Save();
+                }, ValueDollarsKey);
+            }
+            else
+            {
+                options.AddSlider(FineMarginPercentKey, "betterfines_options_fine_margin_percent", 1, 100,
+                    Mathf.RoundToInt(FineMarginPercent), value =>
+                {
+                    FineMarginPercent = Mathf.Clamp(value, 1, 100);
+                    Save();
+                }, ValuePercentKey);
+            }
+
+            options
+                .AddToggle(VisualFlashEnabledKey, "betterfines_options_visual_flash_enabled", VisualFlashEnabled, value =>
+                {
+                    VisualFlashEnabled = value;
+                    Save();
+                })
                 .AddToggle(SpeedingEnabledKey, "betterfines_options_speeding_enabled", EnforceSpeeding, value =>
                 {
                     EnforceSpeeding = value;
                     Save();
                 })
-                .AddSlider(SpeedingFineKey, "betterfines_options_speeding_fine", 25, 1000,
-                    SpeedFineAmount, value =>
-                    {
-                        SpeedFineAmount = Mathf.Clamp(value, 25, 1000);
-                        Save();
-                    }, ValueDollarsKey)
-                .AddSlider(SpeedingMinDelayKey, "betterfines_options_speeding_min_delay", 5, 300,
-                    Mathf.RoundToInt(SpeedingMinDelaySec), value =>
-                    {
-                        SpeedingMinDelaySec = Mathf.Clamp(value, 5, 300);
-                        Save();
-                    }, ValueSecondsKey)
-                .AddSlider(SpeedingOverLimitKey, "betterfines_options_speeding_over_limit", 0, 30,
-                    Mathf.RoundToInt(GraceKmh), value =>
-                    {
-                        GraceKmh = Mathf.Clamp(value, 0, 30);
-                        Save();
-                    }, ValueKmhKey)
-                .AddSlider(SpeedingTriggerDelayKey, "betterfines_options_speeding_trigger_delay", 1, 10,
-                    Mathf.RoundToInt(SpeedHoldSec), value =>
-                    {
-                        SpeedHoldSec = Mathf.Clamp(value, 1, 10);
-                        Save();
-                    }, ValueSecondsKey)
-                .AddSplitter()
                 .AddToggle(WrongWayEnabledKey, "betterfines_options_wrong_way_enabled", EnforceWrongWay, value =>
                 {
                     EnforceWrongWay = value;
                     Save();
                 })
-                .AddSlider(WrongWayFineKey, "betterfines_options_wrong_way_fine", 25, 1000,
-                    WrongWayFineAmount, value =>
-                    {
-                        WrongWayFineAmount = Mathf.Clamp(value, 25, 1000);
-                        Save();
-                    }, ValueDollarsKey)
-                .AddSlider(WrongWayMinDelayKey, "betterfines_options_wrong_way_min_delay", 5, 300,
-                    Mathf.RoundToInt(WrongWayMinDelaySec), value =>
-                    {
-                        WrongWayMinDelaySec = Mathf.Clamp(value, 5, 300);
-                        Save();
-                    }, ValueSecondsKey)
-                .AddSlider(WrongWayMinSpeedKey, "betterfines_options_wrong_way_min_speed", 0, 40,
-                    Mathf.RoundToInt(WrongWayMinSpeedKmh), value =>
-                    {
-                        WrongWayMinSpeedKmh = Mathf.Clamp(value, 0, 40);
-                        Save();
-                    }, ValueKmhKey)
-                .AddSlider(WrongWayTriggerDelayKey, "betterfines_options_wrong_way_trigger_delay", 1, 10,
-                    Mathf.RoundToInt(WrongWayHoldSec), value =>
-                    {
-                        WrongWayHoldSec = Mathf.Clamp(value, 1, 10);
-                        Save();
-                    }, ValueSecondsKey)
-                .AddSplitter()
                 .AddToggle(RedLightEnabledKey, "betterfines_options_red_light_enabled", EnforceRedLights, value =>
                 {
                     EnforceRedLights = value;
                     Save();
                 })
-                .AddSlider(RedLightFineKey, "betterfines_options_red_light_fine", 25, 1000,
-                    RedLightFineAmount, value =>
-                    {
-                        RedLightFineAmount = Mathf.Clamp(value, 25, 1000);
-                        Save();
-                    }, ValueDollarsKey)
-                .AddSlider(RedLightMinDelayKey, "betterfines_options_red_light_min_delay", 5, 300,
-                    Mathf.RoundToInt(RedLightMinDelaySec), value =>
-                    {
-                        RedLightMinDelaySec = Mathf.Clamp(value, 5, 300);
-                        Save();
-                    }, ValueSecondsKey)
-                .AddSlider(RedLightMinSpeedKey, "betterfines_options_red_light_min_speed", 0, 40,
-                    Mathf.RoundToInt(RedLightMinSpeedKmh), value =>
-                    {
-                        RedLightMinSpeedKmh = Mathf.Clamp(value, 0, 40);
-                        Save();
-                    }, ValueKmhKey)
                 .AddToggle(RedLightOrangeFineKey, "betterfines_options_red_light_orange", RedLightOrangeFine, value =>
                 {
                     RedLightOrangeFine = value;
                     Save();
                 })
-                .AddSplitter()
-                .AddHeader("betterfines_options_recidivism_header")
-                .AddToggle(RecidivismEnabledKey, "betterfines_options_recidivism_enabled", RecidivismEnabled, value =>
+                .AddToggle(LicenseSuspensionEnabledKey, "betterfines_options_license_suspension", LicenseRevokeEnabled, value =>
                 {
-                    RecidivismEnabled = value;
-                    Save();
-                })
-                .AddSlider(FineLifetimeDaysKey, "betterfines_options_fine_lifetime_days", 1, 30,
-                    FineLifetimeDays, value =>
-                    {
-                        FineLifetimeDays = Mathf.Clamp(value, 1, 30);
-                        Save();
-                    }, ValueDaysKey)
-                .AddSlider(RecidivismTier1CountKey, "betterfines_options_recidivism_tier1_count", 2, 20,
-                    RecidivismTier1Count, value =>
-                    {
-                        RecidivismTier1Count = Mathf.Clamp(value, 2, 20);
-                        Save();
-                    }, ValueCountKey)
-                .AddSlider(RecidivismTier1PercentKey, "betterfines_options_recidivism_tier1_percent", 0, 300,
-                    RecidivismTier1Percent, value =>
-                    {
-                        RecidivismTier1Percent = Mathf.Clamp(value, 0, 300);
-                        Save();
-                    }, ValuePercentKey)
-                .AddSlider(RecidivismTier2CountKey, "betterfines_options_recidivism_tier2_count", 2, 20,
-                    RecidivismTier2Count, value =>
-                    {
-                        RecidivismTier2Count = Mathf.Clamp(value, 2, 20);
-                        Save();
-                    }, ValueCountKey)
-                .AddSlider(RecidivismTier2PercentKey, "betterfines_options_recidivism_tier2_percent", 0, 300,
-                    RecidivismTier2Percent, value =>
-                    {
-                        RecidivismTier2Percent = Mathf.Clamp(value, 0, 300);
-                        Save();
-                    }, ValuePercentKey)
-                .AddToggle(LicenseRevokeEnabledKey, "betterfines_options_license_revoke_enabled", LicenseRevokeEnabled, value =>
-                {
-                    LicenseRevokeEnabled = value;
-                    Save();
-                })
-                .AddSlider(LicenseRevokeCountKey, "betterfines_options_license_revoke_count", 3, 30,
-                    LicenseRevokeCount, value =>
-                    {
-                        LicenseRevokeCount = Mathf.Clamp(value, 3, 30);
-                        Save();
-                    }, ValueCountKey);
+                    OnLicenseSuspensionEnabledChanged(value);
+                });
 
             OptionsService.Register(_context.ModId, options);
             ModLog.Info("Mod options registered (" + ConfigFileName + ").");
+        }
+
+        private static void OnLicenseSuspensionEnabledChanged(bool enabled)
+        {
+            if (LicenseRevokeEnabled == enabled)
+                return;
+
+            LicenseRevokeEnabled = enabled;
+            if (!enabled)
+                FineRecordStore.SetLicenseSuspended(false);
+
+            Save();
+        }
+
+        private static void OnFineAmountModeChanged(int value)
+        {
+            var mode = (FineAmountMode)Mathf.Clamp(value, 0, FineAmountModeChoices.Length - 1);
+            if (FineAmountMode == mode)
+                return;
+
+            FineAmountMode = mode;
+            Save();
+            BetterFinesOptionsScheduler.RequestRefresh();
         }
 
         private static void Load()
@@ -323,55 +265,71 @@ namespace BetterFines
         private static string BuildJson()
         {
             var inv = CultureInfo.InvariantCulture;
-            return "{\n" +
-                   "  \"speeding_enabled\": " + (EnforceSpeeding ? "true" : "false") + ",\n" +
-                   "  \"speeding_fine_amount\": " + SpeedFineAmount + ",\n" +
-                   "  \"speeding_min_delay_sec\": " + SpeedingMinDelaySec.ToString(inv) + ",\n" +
-                   "  \"speeding_over_limit_kmh\": " + GraceKmh.ToString(inv) + ",\n" +
-                   "  \"speeding_trigger_delay_sec\": " + SpeedHoldSec.ToString(inv) + ",\n" +
-                   "  \"wrong_way_enabled\": " + (EnforceWrongWay ? "true" : "false") + ",\n" +
-                   "  \"wrong_way_fine_amount\": " + WrongWayFineAmount + ",\n" +
-                   "  \"wrong_way_min_delay_sec\": " + WrongWayMinDelaySec.ToString(inv) + ",\n" +
-                   "  \"wrong_way_min_speed_kmh\": " + WrongWayMinSpeedKmh.ToString(inv) + ",\n" +
-                   "  \"wrong_way_trigger_delay_sec\": " + WrongWayHoldSec.ToString(inv) + ",\n" +
-                   "  \"red_light_enabled\": " + (EnforceRedLights ? "true" : "false") + ",\n" +
-                   "  \"red_light_fine_amount\": " + RedLightFineAmount + ",\n" +
-                   "  \"red_light_min_delay_sec\": " + RedLightMinDelaySec.ToString(inv) + ",\n" +
-                   "  \"red_light_min_speed_kmh\": " + RedLightMinSpeedKmh.ToString(inv) + ",\n" +
-                   "  \"red_light_orange_fine\": " + (RedLightOrangeFine ? "true" : "false") + ",\n" +
-                   "  \"road_lookup_max_m\": " + RoadLookupMaxM.ToString(inv) + ",\n" +
-                   "  \"red_light_lookup_max_m\": " + RedLightLookupMaxM.ToString(inv) + ",\n" +
-                   "  \"recidivism_enabled\": " + (RecidivismEnabled ? "true" : "false") + ",\n" +
-                   "  \"fine_lifetime_days\": " + FineLifetimeDays + ",\n" +
-                   "  \"recidivism_tier1_count\": " + RecidivismTier1Count + ",\n" +
-                   "  \"recidivism_tier1_percent\": " + RecidivismTier1Percent + ",\n" +
-                   "  \"recidivism_tier2_count\": " + RecidivismTier2Count + ",\n" +
-                   "  \"recidivism_tier2_percent\": " + RecidivismTier2Percent + ",\n" +
-                   "  \"license_revoke_enabled\": " + (LicenseRevokeEnabled ? "true" : "false") + ",\n" +
-                   "  \"license_revoke_count\": " + LicenseRevokeCount + ",\n" +
-                   "  \"log_enabled\": " + (LogEnabled ? "true" : "false") + ",\n" +
-                   "  \"debug_red_light\": " + (DebugRedLight ? "true" : "false") + ",\n" +
-                   "  \"debug_traffic_zones\": " + (DebugTrafficZones ? "true" : "false") + "\n" +
-                   "}";
+            var lines = new List<string>
+            {
+                "  \"fine_amount_mode\": \"" + FineAmountModeToJson(FineAmountMode) + "\""
+            };
+
+            lines.Add("  \"fine_margin_percent\": " + FineMarginPercent.ToString(inv));
+            if (FixedFineAmount != DefaultFixedFineAmount)
+                lines.Add("  \"fixed_fine_amount\": " + FixedFineAmount);
+
+            lines.Add("  \"speeding_enabled\": " + (EnforceSpeeding ? "true" : "false"));
+            lines.Add("  \"wrong_way_enabled\": " + (EnforceWrongWay ? "true" : "false"));
+            lines.Add("  \"red_light_enabled\": " + (EnforceRedLights ? "true" : "false"));
+            lines.Add("  \"visual_flash_enabled\": " + (VisualFlashEnabled ? "true" : "false"));
+
+            if (!Mathf.Approximately(WrongWayMinSpeedKmh, 8f))
+                lines.Add("  \"wrong_way_min_speed_kmh\": " + WrongWayMinSpeedKmh.ToString(inv));
+            if (!Mathf.Approximately(RedLightMinDelaySec, 5f))
+                lines.Add("  \"red_light_min_delay_sec\": " + RedLightMinDelaySec.ToString(inv));
+            if (!Mathf.Approximately(RedLightMinSpeedKmh, 3f))
+                lines.Add("  \"red_light_min_speed_kmh\": " + RedLightMinSpeedKmh.ToString(inv));
+            if (RedLightOrangeFine)
+                lines.Add("  \"red_light_orange_fine\": true");
+            if (!Mathf.Approximately(RoadLookupMaxM, 40f))
+                lines.Add("  \"road_lookup_max_m\": " + RoadLookupMaxM.ToString(inv));
+            if (!Mathf.Approximately(RedLightLookupMaxM, 35f))
+                lines.Add("  \"red_light_lookup_max_m\": " + RedLightLookupMaxM.ToString(inv));
+            if (!RecidivismEnabled)
+                lines.Add("  \"recidivism_enabled\": false");
+            if (FineLifetimeDays != 5)
+                lines.Add("  \"fine_lifetime_days\": " + FineLifetimeDays);
+            if (RecidivismTier1Count != 3)
+                lines.Add("  \"recidivism_tier1_count\": " + RecidivismTier1Count);
+            if (RecidivismTier1Percent != 50)
+                lines.Add("  \"recidivism_tier1_percent\": " + RecidivismTier1Percent);
+            if (RecidivismTier2Count != 5)
+                lines.Add("  \"recidivism_tier2_count\": " + RecidivismTier2Count);
+            if (RecidivismTier2Percent != 100)
+                lines.Add("  \"recidivism_tier2_percent\": " + RecidivismTier2Percent);
+            if (!LicenseRevokeEnabled)
+                lines.Add("  \"license_revoke_enabled\": false");
+            if (LicenseRevokeCount != 10)
+                lines.Add("  \"license_revoke_count\": " + LicenseRevokeCount);
+            if (LogEnabled)
+                lines.Add("  \"log_enabled\": true");
+            if (DebugRedLight)
+                lines.Add("  \"debug_red_light\": true");
+            if (DebugTrafficZones)
+                lines.Add("  \"debug_traffic_zones\": true");
+
+            return "{\n" + string.Join(",\n", lines) + "\n}";
         }
 
         private static void ResetDefaults()
         {
             EnforceSpeeding = true;
             EnforceRedLights = true;
-            GraceKmh = 5f;
-            SpeedHoldSec = 3f;
-            SpeedFineAmount = 150;
-            RedLightFineAmount = 250;
-            SpeedingMinDelaySec = 10f;
+            FineAmountMode = FineAmountMode.Fixed;
+            FineMarginPercent = 10f;
+            FixedFineAmount = DefaultFixedFineAmount;
             RedLightMinDelaySec = 5f;
-            RedLightMinSpeedKmh = 8f;
+            RedLightMinSpeedKmh = 3f;
+            VisualFlashEnabled = true;
             RedLightOrangeFine = false;
-            EnforceWrongWay = false;
-            WrongWayFineAmount = 200;
-            WrongWayMinDelaySec = 10f;
+            EnforceWrongWay = true;
             WrongWayMinSpeedKmh = 8f;
-            WrongWayHoldSec = 3f;
             RoadLookupMaxM = 40f;
             RedLightLookupMaxM = 35f;
             RecidivismEnabled = true;
@@ -385,25 +343,25 @@ namespace BetterFines
             LogEnabled = false;
             DebugRedLight = false;
             DebugTrafficZones = false;
+            DumpRoadSpeedLimits = false;
+            DumpTrafficApproachZones = false;
+            DumpTrafficLightVisuals = false;
         }
 
         private static void ApplyJson(string json)
         {
-            EnforceSpeeding = ReadBool(json, "speeding_enabled", ReadBool(json, "enforce_speeding", EnforceSpeeding));
-            EnforceRedLights = ReadBool(json, "red_light_enabled", ReadBool(json, "enforce_red_lights", EnforceRedLights));
-            GraceKmh = Mathf.Max(0f, ReadFloat(json, "speeding_over_limit_kmh", ReadFloat(json, "grace_kmh", GraceKmh)));
-            SpeedHoldSec = Mathf.Max(1f, ReadFloat(json, "speeding_trigger_delay_sec", ReadFloat(json, "speed_hold_sec", SpeedHoldSec)));
-            SpeedFineAmount = Mathf.Max(25, ReadInt(json, "speeding_fine_amount", ReadInt(json, "speed_fine_amount", SpeedFineAmount)));
-            RedLightFineAmount = Mathf.Max(25, ReadInt(json, "red_light_fine_amount", RedLightFineAmount));
-            SpeedingMinDelaySec = Mathf.Max(5f, ReadFloat(json, "speeding_min_delay_sec", ReadFloat(json, "cooldown_sec", SpeedingMinDelaySec)));
-            RedLightMinDelaySec = Mathf.Max(5f, ReadFloat(json, "red_light_min_delay_sec", ReadFloat(json, "cooldown_sec", RedLightMinDelaySec)));
+            FineAmountMode = ReadFineAmountMode(json, "fine_amount_mode", FineAmountMode);
+            FineMarginPercent = Mathf.Clamp(ReadFloat(json, "fine_margin_percent", FineMarginPercent), 1f, 100f);
+            FixedFineAmount = Mathf.Max(25, ReadInt(json, "fixed_fine_amount",
+                ReadInt(json, "speeding_fine_amount", FixedFineAmount)));
+            EnforceSpeeding = ReadBool(json, "speeding_enabled", EnforceSpeeding);
+            VisualFlashEnabled = ReadBool(json, "visual_flash_enabled", VisualFlashEnabled);
+            EnforceRedLights = ReadBool(json, "red_light_enabled", EnforceRedLights);
+            RedLightMinDelaySec = Mathf.Max(5f, ReadFloat(json, "red_light_min_delay_sec", RedLightMinDelaySec));
             RedLightMinSpeedKmh = Mathf.Max(0f, ReadFloat(json, "red_light_min_speed_kmh", RedLightMinSpeedKmh));
             RedLightOrangeFine = ReadBool(json, "red_light_orange_fine", RedLightOrangeFine);
-            EnforceWrongWay = ReadBool(json, "wrong_way_enabled", ReadBool(json, "enforce_wrong_way", EnforceWrongWay));
-            WrongWayFineAmount = Mathf.Max(25, ReadInt(json, "wrong_way_fine_amount", WrongWayFineAmount));
-            WrongWayMinDelaySec = Mathf.Max(5f, ReadFloat(json, "wrong_way_min_delay_sec", WrongWayMinDelaySec));
+            EnforceWrongWay = ReadBool(json, "wrong_way_enabled", EnforceWrongWay);
             WrongWayMinSpeedKmh = Mathf.Max(0f, ReadFloat(json, "wrong_way_min_speed_kmh", WrongWayMinSpeedKmh));
-            WrongWayHoldSec = Mathf.Max(1f, ReadFloat(json, "wrong_way_trigger_delay_sec", ReadFloat(json, "wrong_way_hold_sec", WrongWayHoldSec)));
             RoadLookupMaxM = Mathf.Max(10f, ReadFloat(json, "road_lookup_max_m", RoadLookupMaxM));
             RedLightLookupMaxM = Mathf.Max(10f, ReadFloat(json, "red_light_lookup_max_m", RedLightLookupMaxM));
             RecidivismEnabled = ReadBool(json, "recidivism_enabled", RecidivismEnabled);
@@ -417,6 +375,9 @@ namespace BetterFines
             LogEnabled = ReadBool(json, "log_enabled", LogEnabled);
             DebugRedLight = ReadBool(json, "debug_red_light", DebugRedLight);
             DebugTrafficZones = ReadBool(json, "debug_traffic_zones", DebugTrafficZones);
+            DumpRoadSpeedLimits = ReadBool(json, "dump_road_speed_limits", DumpRoadSpeedLimits);
+            DumpTrafficApproachZones = ReadBool(json, "dump_traffic_approach_zones", DumpTrafficApproachZones);
+            DumpTrafficLightVisuals = ReadBool(json, "dump_traffic_light_visuals", DumpTrafficLightVisuals);
         }
 
         private static float ReadFloat(string json, string key, float fallback)
@@ -445,6 +406,34 @@ namespace BetterFines
             var value = ReadFloat(json, key, fallback);
             return Mathf.RoundToInt(value);
         }
+
+        private static FineAmountMode ReadFineAmountMode(string json, string key, FineAmountMode fallback)
+        {
+            var token = "\"" + key + "\"";
+            var idx = json.IndexOf(token, StringComparison.OrdinalIgnoreCase);
+            if (idx < 0)
+                return fallback;
+
+            var colon = json.IndexOf(':', idx);
+            if (colon < 0)
+                return fallback;
+
+            var end = json.IndexOfAny(new[] { ',', '}', '\n', '\r' }, colon + 1);
+            if (end < 0)
+                end = json.Length;
+
+            var raw = json.Substring(colon + 1, end - colon - 1).Trim().Trim('"').ToLowerInvariant();
+            if (raw is "margin_percent" or "previous_supplier_margin_percent" or "supplier_margin_percent")
+                return FineAmountMode.PreviousSupplierMarginPercent;
+            if (raw is "fixed" or "fixed_amount")
+                return FineAmountMode.Fixed;
+            return int.TryParse(raw, out var index) && index == 1
+                ? FineAmountMode.PreviousSupplierMarginPercent
+                : fallback;
+        }
+
+        private static string FineAmountModeToJson(FineAmountMode mode) =>
+            mode == FineAmountMode.PreviousSupplierMarginPercent ? "margin_percent" : "fixed";
 
         private static bool ReadBool(string json, string key, bool fallback)
         {

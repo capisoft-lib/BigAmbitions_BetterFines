@@ -38,6 +38,7 @@ namespace BetterFines
                 return;
 
             _nextAttemptAt = Time.unscaledTime + RetryIntervalSec;
+            BetterFinesConfig.ReloadIfChanged();
             if (!TrafficDataStore.TryLoadOnce())
                 return;
 

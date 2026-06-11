@@ -1,0 +1,5 @@
+Speedometer
+
+Workshop description (optional companion — not required):
+- Mention Speedometer as a recommended add-on so players can see their current speed while fines are enforced.
+- Better Fines works without Speedometer; it only helps display speed on the HUD.

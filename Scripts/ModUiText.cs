@@ -19,6 +19,16 @@ namespace BetterFines
                 "betterfines_warning_license_suspended",
                 "warning! your license is suspended and you cannot drive");
 
+        internal static string SmsDepartmentTraffic =>
+            Loc(
+                "betterfines_sms_department_traffic",
+                "The New York City Department of Transportation");
+
+        internal static string SmsDepartmentMotorVehicles =>
+            Loc(
+                "betterfines_sms_department_motor_vehicles",
+                "The New York State Department of Motor Vehicles");
+
         internal static string FinesPanelTitle =>
             Loc("betterfines_panel_title", "ACTIVE FINES");
 
@@ -31,32 +41,36 @@ namespace BetterFines
                 "betterfines_panel_title_count",
                 "ACTIVE FINES ({count})",
                 "count",
-                activeCount.ToString());
+                LocaleFormat.Integer(activeCount));
         }
 
         internal static string FormatFineLine(ViolationType type, int amount, int daysRemaining) =>
             LocFormat(
                 "betterfines_panel_fine_line",
-                "{type} ${amount} — expires in {days}d",
+                "{type} {amount} — expires in {days}d",
                 new System.Collections.Generic.Dictionary<string, string>
                 {
                     { "type", ViolationLabel(type) },
-                    { "amount", amount.ToString() },
-                    { "days", daysRemaining.ToString() }
+                    { "amount", LocaleFormat.Money(amount) },
+                    { "days", LocaleFormat.Integer(daysRemaining) }
                 });
 
         internal static string FormatTotal(int total) =>
-            LocFormat("betterfines_panel_total", "Total: ${total}", "total", total.ToString());
+            LocFormat("betterfines_panel_total", "Total: {total}", "total", LocaleFormat.Money(total));
 
         internal static string FormatSurcharge(int percent) =>
-            LocFormat("betterfines_panel_surcharge", "Surcharge: +{percent}%", "percent", percent.ToString());
+            LocFormat(
+                "betterfines_panel_surcharge",
+                "Surcharge: +{percent}%",
+                "percent",
+                LocaleFormat.Integer(percent));
 
         internal static string FormatLicenseSuspended(int daysRemaining) =>
             LocFormat(
                 "betterfines_panel_license_suspended",
                 "License suspended — {days}d remaining",
                 "days",
-                daysRemaining.ToString());
+                LocaleFormat.Integer(daysRemaining));
 
         internal static void PollLanguageChange()
         {

@@ -27,6 +27,9 @@ namespace BetterFines
 
         internal static void TryExportOnce(TrafficStopIndex stops)
         {
+            if (!BetterFinesConfig.DumpTrafficApproachZones)
+                return;
+
             if (_exported || stops == null || !stops.IsBuilt || stops.ZoneCount == 0)
                 return;
 

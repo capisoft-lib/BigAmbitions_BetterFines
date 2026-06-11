@@ -42,9 +42,19 @@ namespace BetterFines
         internal static void Tick()
         {
             RebindSaveIfNeeded();
+
+            var wasSuspended = _licenseSuspended;
+            var countBefore = Records.Count;
             PurgeExpired();
-            if (_licenseSuspended && Records.Count == 0)
-                _licenseSuspended = false;
+
+            if (!wasSuspended || Records.Count > 0)
+                return;
+
+            _licenseSuspended = false;
+            Save();
+
+            if (countBefore > 0)
+                FineService.TrySendLicenseRestoredMessage();
         }
 
         internal static int ActiveCount => Records.Count;
