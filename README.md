@@ -2,14 +2,14 @@
 
 Looking for more driving realism?
 
-**Better Fines** adds realistic traffic enforcement to Big Ambitions: speeding tickets, red-light cameras, wrong-way detection, government SMS notices, repeat-offense surcharges, and driver's license suspension.
+**Better Fines** adds realistic traffic enforcement to Big Ambitions: speeding tickets, red-light cameras, wrong-way detection, pedestrian collision tickets (with [**Better Pedestrians**](https://github.com/capisoft-lib/BigAmbitions_BetterPedestrian)), government SMS notices, repeat-offense surcharges, and driver's license suspension.
 
 | | |
 |---|---|
 | **Game** | Big Ambitions EA **0.11 Experimental** |
 | **Languages** | All **22** Big Ambitions interface languages |
 | **Requires** | [`LIB_BaPlayerLocation`](https://github.com/capisoft-lib/BigAmbitions_LIB_BaPlayerLocation) |
-| **Recommended** | [`Speedometer`](https://github.com/capisoft-lib/BigAmbitions_Speedometer) — optional HUD to see your speed while fines are enforced |
+| **Recommended** | [`Speedometer`](https://github.com/capisoft-lib/BigAmbitions_Speedometer) — optional HUD to see your speed while fines are enforced; [`Better Pedestrians`](https://github.com/capisoft-lib/BigAmbitions_BetterPedestrian) — **pedestrian hit fines** (detection & tuning; tickets issued via Better Fines) |
 | **Author** | [capisoft-lib](https://github.com/capisoft-lib) — community mod, not affiliated with Hovgaard Games |
 | **Source & updates** | [github.com/capisoft-lib/BigAmbitions_BetterFines](https://github.com/capisoft-lib/BigAmbitions_BetterFines) |
 
@@ -29,6 +29,7 @@ Speeding is enforced only after you exceed the active limit by **10%** for a sho
 | Red-light fines | **on** |
 | Orange-light fines | **off** |
 | Wrong-way fines | **on** |
+| Pedestrian hit fines | **off** without Better Pedestrians — **on** in Better Pedestrians options when both mods are enabled |
 | Driver's license suspension | **on** |
 | Repeat-offense surcharge | **on** |
 | Government messages (SMS tickets & notices) | **on** |
@@ -38,6 +39,7 @@ Additional behaviour:
 - **Repeat-offense surcharge** — escalating fines when you rack up tickets within a rolling window (+50% at 3 active fines, +100% at 5).
 - **Driver's license suspension** — after 10 active fines, your license is suspended until outstanding tickets expire.
 - **Fines status panel** — active tickets summary in the HUD.
+- **Pedestrian hit fines** — Better Fines exposes the `Pedestrian` violation type, SMS template, and `BetterFinesFineApi`. Install and enable [**Better Pedestrians**](https://github.com/capisoft-lib/BigAmbitions_BetterPedestrian) to detect vehicle–pedestrian hits and charge tickets (toggle **Pedestrian hit fines** in its mod options).
 
 ## Options
 
@@ -74,7 +76,7 @@ better_fines_config.json.example      runtime config template
 
 ## Development
 
-Requires [Big Ambitions Modding SDK](https://github.com/HovgaardGames/BigAmbitionsModding) (Unity **2022.3.62f2**) and [`LIB_BaPlayerLocation`](https://github.com/capisoft-lib/BigAmbitions_LIB_BaPlayerLocation). [`Speedometer`](https://github.com/capisoft-lib/BigAmbitions_Speedometer) is optional but recommended for players.
+Requires [Big Ambitions Modding SDK](https://github.com/HovgaardGames/BigAmbitionsModding) (Unity **2022.3.62f2**) and [`LIB_BaPlayerLocation`](https://github.com/capisoft-lib/BigAmbitions_LIB_BaPlayerLocation). [`Speedometer`](https://github.com/capisoft-lib/BigAmbitions_Speedometer) is optional but recommended for players. For **pedestrian hit fines**, also install [`Better Pedestrians`](https://github.com/capisoft-lib/BigAmbitions_BetterPedestrian) alongside Better Fines.
 
 ```bash
 git clone https://github.com/capisoft-lib/BigAmbitions_BetterFines.git
