@@ -115,6 +115,7 @@ namespace BetterFines
             {
                 ViolationType.RedLight => "betterfines:sms_government_red_light_ticket",
                 ViolationType.WrongWay => "betterfines:sms_government_wrong_way_ticket",
+                ViolationType.Pedestrian => "betterfines:sms_government_pedestrian_ticket",
                 _ => "betterfines:sms_government_speeding_ticket"
             };
 

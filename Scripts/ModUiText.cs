@@ -93,6 +93,7 @@ namespace BetterFines
             {
                 ViolationType.RedLight => Loc("betterfines_violation_red_light", "Red light"),
                 ViolationType.WrongWay => Loc("betterfines_violation_wrong_way", "Wrong way"),
+                ViolationType.Pedestrian => Loc("betterfines_violation_pedestrian", "Pedestrian"),
                 _ => Loc("betterfines_violation_speeding", "Speeding")
             };
 

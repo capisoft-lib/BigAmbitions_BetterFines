@@ -4,6 +4,7 @@ namespace BetterFines
     {
         Speeding,
         RedLight,
-        WrongWay
+        WrongWay,
+        Pedestrian
     }
 }

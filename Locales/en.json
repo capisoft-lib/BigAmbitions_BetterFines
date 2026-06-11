@@ -19,6 +19,7 @@
   "betterfines:sms_government_speeding_ticket": "<b>Notice of Speeding Violation</b><br><br>Dear Sir or Madam:<br><br>We are writing to inform you that your motor vehicle of type <b>{vehicleTypeName}</b> was recorded exceeding the speed limit at {hour}:{minute}, Day {day}.<br><br>You have been automatically charged a fine of <b>{amount}</b> from your primary bank account.<br><br>Sincerely,<br>{department}",
   "betterfines:sms_government_red_light_ticket": "<b>Notice of Traffic Violation</b><br><br>Dear Sir or Madam:<br><br>We are writing to inform you that your motor vehicle of type <b>{vehicleTypeName}</b> was recorded running a red light at {hour}:{minute}, Day {day}.<br><br>You have been automatically charged a fine of <b>{amount}</b> from your primary bank account.<br><br>Sincerely,<br>{department}",
   "betterfines:sms_government_wrong_way_ticket": "<b>Notice of Wrong-Way Driving Violation</b><br><br>Dear Sir or Madam:<br><br>We are writing to inform you that your motor vehicle of type <b>{vehicleTypeName}</b> was recorded driving against traffic at {hour}:{minute}, Day {day}.<br><br>You have been automatically charged a fine of <b>{amount}</b> from your primary bank account.<br><br>Sincerely,<br>{department}",
+  "betterfines:sms_government_pedestrian_ticket": "<b>Notice of Pedestrian Collision Violation</b><br><br>Dear Sir or Madam:<br><br>We are writing to inform you that your motor vehicle of type <b>{vehicleTypeName}</b> was recorded striking or endangering a pedestrian at {hour}:{minute}, Day {day}.<br><br>You have been automatically charged a fine of <b>{amount}</b> from your primary bank account.<br><br>Sincerely,<br>{department}",
   "betterfines:sms_government_license_suspended": "<b>Notice of Driver License Suspension</b><br><br>Dear Sir or Madam:<br><br>Due to repeated traffic violations, your driver's license has been suspended as of {hour}:{minute}, Day {day}.<br><br>You may not operate a motor vehicle until all outstanding fines have expired. Your driving privileges are expected to be restored in approximately <b>{days}</b> day(s).<br><br>Sincerely,<br>{department}",
   "betterfines:sms_government_license_restored": "<b>Notice of Driver License Reinstatement</b><br><br>Dear Sir or Madam:<br><br>Your last outstanding traffic fine has expired as of {hour}:{minute}, Day {day}.<br><br>Your driver's license has been reinstated. You may operate a motor vehicle again.<br><br>Sincerely,<br>{department}",
   "betterfines_panel_title": "ACTIVE FINES",
@@ -30,6 +31,7 @@
   "betterfines_violation_speeding": "Speeding",
   "betterfines_violation_red_light": "Red light",
   "betterfines_violation_wrong_way": "Wrong way",
+  "betterfines_violation_pedestrian": "Pedestrian",
   "betterfines_sms_department_traffic": "The New York City Department of Transportation",
   "betterfines_sms_department_motor_vehicles": "The New York State Department of Motor Vehicles"
 }

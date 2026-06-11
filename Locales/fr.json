@@ -19,6 +19,7 @@
   "betterfines:sms_government_speeding_ticket": "<b>Avis d'infraction pour excès de vitesse</b><br><br>Madame, Monsieur,<br><br>Nous vous informons que votre véhicule de type <b>{vehicleTypeName}</b> a été enregistré en excès de vitesse à {hour}:{minute}, jour {day}.<br><br>Un prélèvement automatique de <b>{amount}</b> a été effectué sur votre compte bancaire principal.<br><br>Cordialement,<br>{department}",
   "betterfines:sms_government_red_light_ticket": "<b>Avis d'infraction routière</b><br><br>Madame, Monsieur,<br><br>Nous vous informons que votre véhicule de type <b>{vehicleTypeName}</b> a été enregistré franchissant un feu rouge à {hour}:{minute}, jour {day}.<br><br>Un prélèvement automatique de <b>{amount}</b> a été effectué sur votre compte bancaire principal.<br><br>Cordialement,<br>{department}",
   "betterfines:sms_government_wrong_way_ticket": "<b>Avis d'infraction pour circulation en sens interdit</b><br><br>Madame, Monsieur,<br><br>Nous vous informons que votre véhicule de type <b>{vehicleTypeName}</b> a été enregistré circulant en sens interdit à {hour}:{minute}, jour {day}.<br><br>Un prélèvement automatique de <b>{amount}</b> a été effectué sur votre compte bancaire principal.<br><br>Cordialement,<br>{department}",
+  "betterfines:sms_government_pedestrian_ticket": "<b>Avis d'infraction pour collision avec un piéton</b><br><br>Madame, Monsieur,<br><br>Nous vous informons que votre véhicule de type <b>{vehicleTypeName}</b> a été enregistré en collision avec ou en danger pour un piéton à {hour}:{minute}, jour {day}.<br><br>Un prélèvement automatique de <b>{amount}</b> a été effectué sur votre compte bancaire principal.<br><br>Cordialement,<br>{department}",
   "betterfines:sms_government_license_suspended": "<b>Avis de suspension du permis de conduire</b><br><br>Madame, Monsieur,<br><br>En raison d'infractions routières répétées, votre permis de conduire a été suspendu à compter de {hour}:{minute}, jour {day}.<br><br>Vous ne pouvez plus conduire un véhicule tant que toutes vos amendes en cours n'auront pas expiré. Votre permis devrait être rétabli dans environ <b>{days}</b> jour(s).<br><br>Cordialement,<br>{department}",
   "betterfines:sms_government_license_restored": "<b>Avis de rétablissement du permis de conduire</b><br><br>Madame, Monsieur,<br><br>Votre dernière amende routière en cours a expiré à {hour}:{minute}, jour {day}.<br><br>Votre permis de conduire a été rétabli. Vous pouvez à nouveau conduire un véhicule.<br><br>Cordialement,<br>{department}",
   "betterfines_panel_title": "AMENDES EN COURS",
@@ -30,6 +31,7 @@
   "betterfines_violation_speeding": "Excès de vitesse",
   "betterfines_violation_red_light": "Feu rouge",
   "betterfines_violation_wrong_way": "Sens interdit",
+  "betterfines_violation_pedestrian": "Piéton",
   "betterfines_sms_department_traffic": "Le Département des Transports de la Ville de New York",
   "betterfines_sms_department_motor_vehicles": "Le Département des Véhicules Motorisés de l'État de New York"
 }
