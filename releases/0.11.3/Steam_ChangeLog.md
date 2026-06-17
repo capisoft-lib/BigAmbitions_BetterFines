@@ -1,0 +1,5 @@
+- **LIB BA Unified UI bundled** — fines status panel and HUD chrome use the shared vanilla-style UI library (no separate Workshop mod)
+- **Mod options fix** — ESC → Options → Mods uses game PlayerPrefs; defaults are on for all fine types except orange light
+- **Per-save fine storage** — active tickets stored in `save.modData` (legacy `active_fines_*.json` in the mod folder removed on load)
+- **Better Pedestrians bridge** — pedestrian hit fines only when Better Pedestrians is installed and enabled
+- **Optional advanced config** — `better_fines_config.json` is optional (debug/tuning only); no file shipped to players by default

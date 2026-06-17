@@ -38,6 +38,20 @@ namespace BetterFines
             "betterfines_options_fine_mode_margin_percent"
         };
 
+        private static readonly string[] LegacyGameOptionJsonKeys =
+        {
+            "fine_amount_mode",
+            "fine_margin_percent",
+            "fixed_fine_amount",
+            "speeding_fine_amount",
+            "speeding_enabled",
+            "visual_flash_enabled",
+            "red_light_enabled",
+            "red_light_orange_fine",
+            "wrong_way_enabled",
+            "license_revoke_enabled"
+        };
+
         private static ModContext _context;
         private static string _configPath;
         private static DateTime _lastConfigWriteUtc = DateTime.MinValue;
@@ -67,7 +81,7 @@ namespace BetterFines
         internal static bool DebugRedLight { get; private set; }
         internal static bool DebugTrafficZones { get; private set; }
 
-        /// <summary>Dev-only CSV dumps (default off; never written by Save/BuildJson).</summary>
+        /// <summary>Dev-only CSV dumps (default off; never written by SaveAdvancedConfig).</summary>
         internal static bool DumpRoadSpeedLimits { get; private set; }
         internal static bool DumpTrafficApproachZones { get; private set; }
         internal static bool DumpTrafficLightVisuals { get; private set; }
@@ -83,7 +97,7 @@ namespace BetterFines
             EnsureConfigPath();
             Load();
             ModLog.Initialize(context);
-            RegisterOptions();
+            EnsureOptionsRegistered();
         }
 
         /// <summary>
@@ -93,14 +107,27 @@ namespace BetterFines
         {
             if (_context == null)
             {
-                Initialize(context);
-                return;
+                _context = context;
+                EnsureConfigPath();
+                Load();
+                ModLog.Initialize(context);
+            }
+            else if (string.IsNullOrEmpty(_configPath))
+            {
+                EnsureConfigPath();
             }
 
-            if (string.IsNullOrEmpty(_configPath))
-                EnsureConfigPath();
-
             ReloadIfChanged();
+            LoadGameOptions();
+            EnsureOptionsRegistered();
+        }
+
+        internal static void EnsureOptionsRegistered()
+        {
+            if (_context == null)
+                return;
+
+            RegisterOptions();
         }
 
         private static void EnsureConfigPath()
@@ -119,7 +146,16 @@ namespace BetterFines
             if (writeTime <= _lastConfigWriteUtc)
                 return;
 
-            Load();
+            try
+            {
+                ApplyAdvancedJson(File.ReadAllText(_configPath));
+                _lastConfigWriteUtc = writeTime;
+                ModLog.Info("Reloaded " + ConfigFileName);
+            }
+            catch (Exception ex)
+            {
+                ModLog.Warn("Failed to reload " + ConfigFileName + ": " + ex.Message);
+            }
         }
 
         internal static void Shutdown()
@@ -133,7 +169,7 @@ namespace BetterFines
             ResetDefaults();
         }
 
-        internal static void RefreshOptions() => RegisterOptions();
+        internal static void RefreshOptions() => EnsureOptionsRegistered();
 
         private static void RegisterOptions()
         {
@@ -156,7 +192,6 @@ namespace BetterFines
                     FixedFineAmount, value =>
                 {
                     FixedFineAmount = Mathf.Clamp(value, 25, 1000);
-                    Save();
                 }, ValueDollarsKey);
             }
             else
@@ -165,7 +200,6 @@ namespace BetterFines
                     Mathf.RoundToInt(FineMarginPercent), value =>
                 {
                     FineMarginPercent = Mathf.Clamp(value, 1, 100);
-                    Save();
                 }, ValuePercentKey);
             }
 
@@ -173,35 +207,153 @@ namespace BetterFines
                 .AddToggle(VisualFlashEnabledKey, "betterfines_options_visual_flash_enabled", VisualFlashEnabled, value =>
                 {
                     VisualFlashEnabled = value;
-                    Save();
                 })
                 .AddToggle(SpeedingEnabledKey, "betterfines_options_speeding_enabled", EnforceSpeeding, value =>
                 {
                     EnforceSpeeding = value;
-                    Save();
                 })
                 .AddToggle(WrongWayEnabledKey, "betterfines_options_wrong_way_enabled", EnforceWrongWay, value =>
                 {
                     EnforceWrongWay = value;
-                    Save();
                 })
                 .AddToggle(RedLightEnabledKey, "betterfines_options_red_light_enabled", EnforceRedLights, value =>
                 {
                     EnforceRedLights = value;
-                    Save();
                 })
                 .AddToggle(RedLightOrangeFineKey, "betterfines_options_red_light_orange", RedLightOrangeFine, value =>
                 {
                     RedLightOrangeFine = value;
-                    Save();
                 })
                 .AddToggle(LicenseSuspensionEnabledKey, "betterfines_options_license_suspension", LicenseRevokeEnabled, value =>
                 {
                     OnLicenseSuspensionEnabledChanged(value);
                 });
 
-            OptionsService.Register(_context.ModId, options);
-            ModLog.Info("Mod options registered (" + ConfigFileName + ").");
+            try
+            {
+                OptionsService.Register(_context.ModId, options);
+                ModLog.Info("Mod options registered.");
+            }
+            catch (Exception ex)
+            {
+                ModLog.Warn("Failed to register mod options: " + ex.Message);
+            }
+        }
+
+        private static void LoadGameOptions()
+        {
+            if (_context == null)
+                return;
+
+            RepairStaleGameOptionPrefs();
+
+            var modId = _context.ModId;
+            FineAmountMode = (FineAmountMode)Mathf.Clamp(
+                BetterFinesGameOptionPrefs.LoadInt(modId, FineAmountModeKey, (int)FineAmountMode.Fixed),
+                0, FineAmountModeChoices.Length - 1);
+            FixedFineAmount = Mathf.Clamp(
+                BetterFinesGameOptionPrefs.LoadInt(modId, FixedFineAmountKey, DefaultFixedFineAmount), 25, 1000);
+            FineMarginPercent = Mathf.Clamp(
+                BetterFinesGameOptionPrefs.LoadInt(modId, FineMarginPercentKey, 10), 1, 100);
+            VisualFlashEnabled = BetterFinesGameOptionPrefs.LoadToggle(modId, VisualFlashEnabledKey, true);
+            EnforceSpeeding = BetterFinesGameOptionPrefs.LoadToggle(modId, SpeedingEnabledKey, true);
+            EnforceWrongWay = BetterFinesGameOptionPrefs.LoadToggle(modId, WrongWayEnabledKey, true);
+            EnforceRedLights = BetterFinesGameOptionPrefs.LoadToggle(modId, RedLightEnabledKey, true);
+            RedLightOrangeFine = BetterFinesGameOptionPrefs.LoadToggle(modId, RedLightOrangeFineKey, false);
+            LicenseRevokeEnabled = BetterFinesGameOptionPrefs.LoadToggle(modId, LicenseSuspensionEnabledKey, true);
+        }
+
+        /// <summary>
+        /// PlayerPrefs are global (not per-save). Stale false values from the old JSON/prefs bug
+        /// show all enforcement toggles off; restore intended defaults (all on except orange).
+        /// </summary>
+        private static void RepairStaleGameOptionPrefs()
+        {
+            if (_context == null)
+                return;
+
+            var modId = _context.ModId;
+            var speeding = BetterFinesGameOptionPrefs.LoadToggle(modId, SpeedingEnabledKey, true);
+            var wrongWay = BetterFinesGameOptionPrefs.LoadToggle(modId, WrongWayEnabledKey, true);
+            var redLight = BetterFinesGameOptionPrefs.LoadToggle(modId, RedLightEnabledKey, true);
+            var orange = BetterFinesGameOptionPrefs.LoadToggle(modId, RedLightOrangeFineKey, false);
+
+            if (speeding && wrongWay && redLight)
+                return;
+
+            if (!speeding && !wrongWay && !redLight && !orange)
+            {
+                BetterFinesGameOptionPrefs.SaveToggle(modId, SpeedingEnabledKey, true);
+                BetterFinesGameOptionPrefs.SaveToggle(modId, WrongWayEnabledKey, true);
+                BetterFinesGameOptionPrefs.SaveToggle(modId, RedLightEnabledKey, true);
+                ModLog.Info("Repaired stale mod option prefs (enforcement toggles reset to on).");
+                return;
+            }
+
+            if (!BetterFinesGameOptionPrefs.HasKey(modId, SpeedingEnabledKey))
+            {
+                BetterFinesGameOptionPrefs.SaveToggle(modId, SpeedingEnabledKey, true);
+                BetterFinesGameOptionPrefs.SaveToggle(modId, WrongWayEnabledKey, true);
+                BetterFinesGameOptionPrefs.SaveToggle(modId, RedLightEnabledKey, true);
+                BetterFinesGameOptionPrefs.SaveToggle(modId, RedLightOrangeFineKey, false);
+                BetterFinesGameOptionPrefs.SaveToggle(modId, VisualFlashEnabledKey, true);
+                BetterFinesGameOptionPrefs.SaveToggle(modId, LicenseSuspensionEnabledKey, true);
+            }
+        }
+
+        private static void MigrateLegacyJsonGameOptions(string json)
+        {
+            if (_context == null)
+                return;
+
+            var modId = _context.ModId;
+            MigrateIntIfMissing(modId, FineAmountModeKey,
+                (int)ReadFineAmountMode(json, "fine_amount_mode", FineAmountMode.Fixed));
+            MigrateIntIfMissing(modId, FineMarginPercentKey,
+                Mathf.RoundToInt(Mathf.Clamp(ReadFloat(json, "fine_margin_percent", 10f), 1f, 100f)));
+            MigrateIntIfMissing(modId, FixedFineAmountKey,
+                Mathf.Clamp(ReadInt(json, "fixed_fine_amount",
+                    ReadInt(json, "speeding_fine_amount", DefaultFixedFineAmount)), 25, 1000));
+            MigrateToggleIfMissing(modId, VisualFlashEnabledKey,
+                ReadBool(json, "visual_flash_enabled", true));
+            MigrateToggleIfMissing(modId, SpeedingEnabledKey,
+                ReadBool(json, "speeding_enabled", true));
+            MigrateToggleIfMissing(modId, WrongWayEnabledKey,
+                ReadBool(json, "wrong_way_enabled", true));
+            MigrateToggleIfMissing(modId, RedLightEnabledKey,
+                ReadBool(json, "red_light_enabled", true));
+            MigrateToggleIfMissing(modId, RedLightOrangeFineKey,
+                ReadBool(json, "red_light_orange_fine", false));
+            MigrateToggleIfMissing(modId, LicenseSuspensionEnabledKey,
+                ReadBool(json, "license_revoke_enabled", true));
+
+            ModLog.Info("Migrated in-game options from " + ConfigFileName + " to mod options (PlayerPrefs).");
+        }
+
+        private static void MigrateToggleIfMissing(string modId, string optionId, bool value)
+        {
+            if (!BetterFinesGameOptionPrefs.HasKey(modId, optionId))
+                BetterFinesGameOptionPrefs.SaveToggle(modId, optionId, value);
+        }
+
+        private static void MigrateIntIfMissing(string modId, string optionId, int value)
+        {
+            if (!BetterFinesGameOptionPrefs.HasKey(modId, optionId))
+                BetterFinesGameOptionPrefs.SaveInt(modId, optionId, value);
+        }
+
+        private static bool ContainsLegacyGameOptionKeys(string json)
+        {
+            if (string.IsNullOrEmpty(json))
+                return false;
+
+            foreach (var key in LegacyGameOptionJsonKeys)
+            {
+                if (json.IndexOf("\"" + key + "\"", StringComparison.OrdinalIgnoreCase) >= 0)
+                    return true;
+            }
+
+            return false;
         }
 
         private static void OnLicenseSuspensionEnabledChanged(bool enabled)
@@ -212,8 +364,6 @@ namespace BetterFines
             LicenseRevokeEnabled = enabled;
             if (!enabled)
                 FineRecordStore.SetLicenseSuspended(false);
-
-            Save();
         }
 
         private static void OnFineAmountModeChanged(int value)
@@ -223,37 +373,49 @@ namespace BetterFines
                 return;
 
             FineAmountMode = mode;
-            Save();
             BetterFinesOptionsScheduler.RequestRefresh();
         }
 
         private static void Load()
         {
             ResetDefaults();
+            var migrated = false;
 
-            if (string.IsNullOrEmpty(_configPath) || !File.Exists(_configPath))
-                return;
+            if (!string.IsNullOrEmpty(_configPath) && File.Exists(_configPath))
+            {
+                try
+                {
+                    var json = File.ReadAllText(_configPath);
+                    if (ContainsLegacyGameOptionKeys(json))
+                    {
+                        MigrateLegacyJsonGameOptions(json);
+                        migrated = true;
+                    }
 
-            try
-            {
-                ApplyJson(File.ReadAllText(_configPath));
-                _lastConfigWriteUtc = File.GetLastWriteTimeUtc(_configPath);
-                ModLog.Info("Loaded " + ConfigFileName);
+                    ApplyAdvancedJson(json);
+                    _lastConfigWriteUtc = File.GetLastWriteTimeUtc(_configPath);
+                    ModLog.Info("Loaded " + ConfigFileName);
+                }
+                catch (Exception ex)
+                {
+                    ModLog.Warn("Failed to read " + ConfigFileName + ": " + ex.Message);
+                }
             }
-            catch (Exception ex)
-            {
-                ModLog.Warn("Failed to read " + ConfigFileName + ": " + ex.Message);
-            }
+
+            LoadGameOptions();
+
+            if (migrated)
+                SaveAdvancedConfig();
         }
 
-        private static void Save()
+        private static void SaveAdvancedConfig()
         {
             if (string.IsNullOrEmpty(_configPath))
                 return;
 
             try
             {
-                File.WriteAllText(_configPath, BuildJson(), Encoding.UTF8);
+                File.WriteAllText(_configPath, BuildAdvancedJson(), Encoding.UTF8);
                 _lastConfigWriteUtc = File.GetLastWriteTimeUtc(_configPath);
             }
             catch (Exception ex)
@@ -262,22 +424,10 @@ namespace BetterFines
             }
         }
 
-        private static string BuildJson()
+        private static string BuildAdvancedJson()
         {
             var inv = CultureInfo.InvariantCulture;
-            var lines = new List<string>
-            {
-                "  \"fine_amount_mode\": \"" + FineAmountModeToJson(FineAmountMode) + "\""
-            };
-
-            lines.Add("  \"fine_margin_percent\": " + FineMarginPercent.ToString(inv));
-            if (FixedFineAmount != DefaultFixedFineAmount)
-                lines.Add("  \"fixed_fine_amount\": " + FixedFineAmount);
-
-            lines.Add("  \"speeding_enabled\": " + (EnforceSpeeding ? "true" : "false"));
-            lines.Add("  \"wrong_way_enabled\": " + (EnforceWrongWay ? "true" : "false"));
-            lines.Add("  \"red_light_enabled\": " + (EnforceRedLights ? "true" : "false"));
-            lines.Add("  \"visual_flash_enabled\": " + (VisualFlashEnabled ? "true" : "false"));
+            var lines = new List<string>();
 
             if (!Mathf.Approximately(WrongWayMinSpeedKmh, 8f))
                 lines.Add("  \"wrong_way_min_speed_kmh\": " + WrongWayMinSpeedKmh.ToString(inv));
@@ -285,8 +435,6 @@ namespace BetterFines
                 lines.Add("  \"red_light_min_delay_sec\": " + RedLightMinDelaySec.ToString(inv));
             if (!Mathf.Approximately(RedLightMinSpeedKmh, 3f))
                 lines.Add("  \"red_light_min_speed_kmh\": " + RedLightMinSpeedKmh.ToString(inv));
-            if (RedLightOrangeFine)
-                lines.Add("  \"red_light_orange_fine\": true");
             if (!Mathf.Approximately(RoadLookupMaxM, 40f))
                 lines.Add("  \"road_lookup_max_m\": " + RoadLookupMaxM.ToString(inv));
             if (!Mathf.Approximately(RedLightLookupMaxM, 35f))
@@ -303,8 +451,6 @@ namespace BetterFines
                 lines.Add("  \"recidivism_tier2_count\": " + RecidivismTier2Count);
             if (RecidivismTier2Percent != 100)
                 lines.Add("  \"recidivism_tier2_percent\": " + RecidivismTier2Percent);
-            if (!LicenseRevokeEnabled)
-                lines.Add("  \"license_revoke_enabled\": false");
             if (LicenseRevokeCount != 10)
                 lines.Add("  \"license_revoke_count\": " + LicenseRevokeCount);
             if (LogEnabled)
@@ -313,6 +459,15 @@ namespace BetterFines
                 lines.Add("  \"debug_red_light\": true");
             if (DebugTrafficZones)
                 lines.Add("  \"debug_traffic_zones\": true");
+            if (DumpRoadSpeedLimits)
+                lines.Add("  \"dump_road_speed_limits\": true");
+            if (DumpTrafficApproachZones)
+                lines.Add("  \"dump_traffic_approach_zones\": true");
+            if (DumpTrafficLightVisuals)
+                lines.Add("  \"dump_traffic_light_visuals\": true");
+
+            if (lines.Count == 0)
+                return "{\n}\n";
 
             return "{\n" + string.Join(",\n", lines) + "\n}";
         }
@@ -348,19 +503,10 @@ namespace BetterFines
             DumpTrafficLightVisuals = false;
         }
 
-        private static void ApplyJson(string json)
+        private static void ApplyAdvancedJson(string json)
         {
-            FineAmountMode = ReadFineAmountMode(json, "fine_amount_mode", FineAmountMode);
-            FineMarginPercent = Mathf.Clamp(ReadFloat(json, "fine_margin_percent", FineMarginPercent), 1f, 100f);
-            FixedFineAmount = Mathf.Max(25, ReadInt(json, "fixed_fine_amount",
-                ReadInt(json, "speeding_fine_amount", FixedFineAmount)));
-            EnforceSpeeding = ReadBool(json, "speeding_enabled", EnforceSpeeding);
-            VisualFlashEnabled = ReadBool(json, "visual_flash_enabled", VisualFlashEnabled);
-            EnforceRedLights = ReadBool(json, "red_light_enabled", EnforceRedLights);
             RedLightMinDelaySec = Mathf.Max(5f, ReadFloat(json, "red_light_min_delay_sec", RedLightMinDelaySec));
             RedLightMinSpeedKmh = Mathf.Max(0f, ReadFloat(json, "red_light_min_speed_kmh", RedLightMinSpeedKmh));
-            RedLightOrangeFine = ReadBool(json, "red_light_orange_fine", RedLightOrangeFine);
-            EnforceWrongWay = ReadBool(json, "wrong_way_enabled", EnforceWrongWay);
             WrongWayMinSpeedKmh = Mathf.Max(0f, ReadFloat(json, "wrong_way_min_speed_kmh", WrongWayMinSpeedKmh));
             RoadLookupMaxM = Mathf.Max(10f, ReadFloat(json, "road_lookup_max_m", RoadLookupMaxM));
             RedLightLookupMaxM = Mathf.Max(10f, ReadFloat(json, "red_light_lookup_max_m", RedLightLookupMaxM));
@@ -370,7 +516,6 @@ namespace BetterFines
             RecidivismTier1Percent = Mathf.Clamp(ReadInt(json, "recidivism_tier1_percent", RecidivismTier1Percent), 0, 300);
             RecidivismTier2Count = Mathf.Clamp(ReadInt(json, "recidivism_tier2_count", RecidivismTier2Count), 2, 20);
             RecidivismTier2Percent = Mathf.Clamp(ReadInt(json, "recidivism_tier2_percent", RecidivismTier2Percent), 0, 300);
-            LicenseRevokeEnabled = ReadBool(json, "license_revoke_enabled", LicenseRevokeEnabled);
             LicenseRevokeCount = Mathf.Clamp(ReadInt(json, "license_revoke_count", LicenseRevokeCount), 3, 30);
             LogEnabled = ReadBool(json, "log_enabled", LogEnabled);
             DebugRedLight = ReadBool(json, "debug_red_light", DebugRedLight);
@@ -431,9 +576,6 @@ namespace BetterFines
                 ? FineAmountMode.PreviousSupplierMarginPercent
                 : fallback;
         }
-
-        private static string FineAmountModeToJson(FineAmountMode mode) =>
-            mode == FineAmountMode.PreviousSupplierMarginPercent ? "margin_percent" : "fixed";
 
         private static bool ReadBool(string json, string key, bool fallback)
         {

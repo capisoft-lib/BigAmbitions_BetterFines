@@ -8,7 +8,7 @@ Looking for more driving realism?
 |---|---|
 | **Game** | Big Ambitions EA **0.11 Experimental** |
 | **Languages** | All **22** Big Ambitions interface languages |
-| **Requires** | [`LIB_BaPlayerLocation`](https://github.com/capisoft-lib/BigAmbitions_LIB_BaPlayerLocation) |
+| **Requires** | [`LIB_BaPlayerLocation`](https://github.com/capisoft-lib/BigAmbitions_LIB_BaPlayerLocation) ([`LIB_BaUnifiedUI`](https://github.com/capisoft-lib/BigAmbitions_LIB_BaUnifiedUI) is bundled in `Dependencies/`) |
 | **Recommended** | [`Speedometer`](https://github.com/capisoft-lib/BigAmbitions_Speedometer) — optional HUD to see your speed while fines are enforced; [`Better Pedestrians`](https://github.com/capisoft-lib/BigAmbitions_BetterPedestrian) — **pedestrian hit fines** (detection & tuning; tickets issued via Better Fines) |
 | **Author** | [capisoft-lib](https://github.com/capisoft-lib) — community mod, not affiliated with Hovgaard Games |
 | **Source & updates** | [github.com/capisoft-lib/BigAmbitions_BetterFines](https://github.com/capisoft-lib/BigAmbitions_BetterFines) |
@@ -43,26 +43,48 @@ Additional behaviour:
 
 ## Options
 
-In-game mod options (and optional `better_fines_config.json`) let you:
+**In-game (ESC → Options → Mods):** fine amounts, visual flash, each fine type, orange-light fines, and license suspension. The game stores these in PlayerPrefs automatically.
 
-- **Enable or disable** each fine type individually (visual flash, speeding, wrong-way, red light, orange light, license suspension).
-- **Customise fine amounts** — fixed dollar amount (default **$200**) or percentage of vehicle value.
+**Advanced tuning (optional `better_fines_config.json`):** detection thresholds, recidivism tiers, license-revoke count, logging, and debug flags. **No file is required** — defaults apply if absent. To tune advanced settings, copy `better_fines_config.json.example` from the mod source to `ModsLocal/BetterFines/better_fines_config.json`. Changes reload while playing (no restart needed).
 
-Copy `better_fines_config.json.example` to `ModsLocal/BetterFines/better_fines_config.json` for local tuning. The file lives next to the installed mod content (`ModContext.ModRootPath`).
+Active fine records are stored in each save file via `save.modData` (not in the mod install folder). Legacy `active_fines_*.json` files in the mod folder are ignored and removed on load.
 
-Example keys:
+On first run after an upgrade, any old in-game keys still present in `better_fines_config.json` are migrated once into mod options (PlayerPrefs) and removed from the file.
+
+### In-game mod options (PlayerPrefs)
+
+| Setting | Default |
+|---|---|
+| Fine amount mode | fixed ($200) |
+| Visual flash | **on** |
+| Speeding fines | **on** |
+| Red-light fines | **on** |
+| Orange-light fines | **off** |
+| Wrong-way fines | **on** |
+| License suspension | **on** |
+
+### Advanced JSON keys
 
 | Key | Default | Description |
 |---|---|---|
-| `fine_amount_mode` | `"fixed"` | `"fixed"` or `"margin_percent"` |
-| `fixed_fine_amount` | `200` | Dollar amount when mode is fixed |
-| `fine_margin_percent` | `10` | % of vehicle value when mode is margin |
-| `visual_flash_enabled` | `true` | Camera flash on red-light tickets |
-| `speeding_enabled` | `true` | Speeding fines |
-| `red_light_enabled` | `true` | Red-light fines |
-| `red_light_orange_fine` | `false` | Orange-light fines |
-| `wrong_way_enabled` | `true` | Wrong-way fines |
-| `license_revoke_enabled` | `true` | License suspension |
+| `wrong_way_min_speed_kmh` | `8` | Minimum speed for wrong-way detection |
+| `red_light_min_delay_sec` | `5` | Cooldown between red-light fines |
+| `red_light_min_speed_kmh` | `3` | Minimum speed for red-light detection |
+| `road_lookup_max_m` | `40` | Road segment search radius |
+| `red_light_lookup_max_m` | `35` | Traffic-light search radius |
+| `recidivism_enabled` | `true` | Repeat-offense surcharge |
+| `fine_lifetime_days` | `5` | Days until a fine expires |
+| `recidivism_tier1_count` | `3` | Active fines for +50% surcharge |
+| `recidivism_tier1_percent` | `50` | Tier-1 surcharge percent |
+| `recidivism_tier2_count` | `5` | Active fines for +100% surcharge |
+| `recidivism_tier2_percent` | `100` | Tier-2 surcharge percent |
+| `license_revoke_count` | `10` | Active fines before license suspension |
+| `log_enabled` | `false` | Write mod logs to `Logs/` |
+| `debug_red_light` | `false` | Red-light debug overlay |
+| `debug_traffic_zones` | `false` | Traffic-zone debug overlay |
+| `dump_road_speed_limits` | `false` | Dev CSV dump |
+| `dump_traffic_approach_zones` | `false` | Dev CSV dump |
+| `dump_traffic_light_visuals` | `false` | Dev CSV dump |
 
 ## Repository layout
 
@@ -71,7 +93,7 @@ This repository **is** the mod (flat layout — copy the repo root into `Assets/
 ```text
 Scripts/ Locales/ tools/              Unity mod sources
 ModManifest.asset  BetterFines.asmdef
-better_fines_config.json.example      runtime config template
+better_fines_config.json.example      optional advanced-tuning template (repo only; not installed)
 ```
 
 ## Development
@@ -83,7 +105,7 @@ git clone https://github.com/capisoft-lib/BigAmbitions_BetterFines.git
 ```
 
 1. Copy this repo into your SDK at `Assets/Mods/BetterFines/` (and install `LIB_BaPlayerLocation`).
-2. **Mod Builder → Build + Install** for `LIB_BaPlayerLocation`, then `BetterFines`.
+2. **Mod Builder → Build + Install** for `LIB_BaPlayerLocation`, then `BetterFines`. After rebuilding **LIB_BaUnifiedUI**, run `.\tools\sync-dependencies.ps1` (or menu **Big Ambitions → Mods → Better Fines → Sync bundled dependencies**).
 
 Or from a [BigAmbitions_DevEnv](https://github.com/capisoft-lib/BigAmbitions_DevEnv) workspace:
 

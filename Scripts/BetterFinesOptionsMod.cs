@@ -19,6 +19,7 @@ namespace BetterFines
         {
             ModLog.Info("BetterFines options init | mod_id=" + context.ModId);
             BetterFinesConfig.Initialize(context);
+            BetterFinesOptionsScheduler.EnsureRunning();
             return Task.CompletedTask;
         }
 

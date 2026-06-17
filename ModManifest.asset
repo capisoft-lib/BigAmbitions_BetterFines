@@ -15,7 +15,7 @@ MonoBehaviour:
   ModId: BetterFines
   DisplayName: Better Fines
   Author: capisoft-lib
-  Version: 0.11.2
+  Version: 0.11.3
   AssetBundleName: 
   ModAssembly: {fileID: 5897886265953266890, guid: f2a3b4c5d6e7489012345678abcdef01, type: 3}
   LocalesFolder: {fileID: 102900000, guid: a9b8c7d6e5f4432109876543210fedcb, type: 3}

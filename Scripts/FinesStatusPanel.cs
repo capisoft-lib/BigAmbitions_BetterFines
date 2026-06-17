@@ -1,12 +1,19 @@
 using System.Text;
+using Capisoft.Lib.BaUnifiedUI.Chrome;
+using Capisoft.Lib.BaUnifiedUI.Controls;
+using Capisoft.Lib.BaUnifiedUI.Core;
+using Capisoft.Lib.BaUnifiedUI.Fluent;
+using Capisoft.Lib.BaUnifiedUI.Layout;
 using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace BetterFines
 {
     internal static class FinesStatusPanel
     {
-        private const string RootName = "BetterFines_StatusPanel_v1";
+        private const string RootName = "BetterFines_StatusPanel_v2";
+        private const int CanvasSortOrder = 8999;
         private const float PanelGapAboveVoogle = 8f;
         private const float DefaultVoogleHeight = 101f;
         private const float RowHeight = 22f;
@@ -18,47 +25,51 @@ namespace BetterFines
         private static TextMeshProUGUI _bodyLabel;
         private static bool _lastVisible;
         private static string _lastBody = string.Empty;
+        private static float _lastPanelHeight;
         private static RectTransform _cachedVooglePanel;
         private static float _nextVoogleLookupAt;
 
         internal static void EnsureCreated()
         {
+            DestroyIfStale();
             if (_root != null)
                 return;
 
-            BaGameUiChrome.EnsureInitialized();
-            _root = new GameObject(RootName);
-            Object.DontDestroyOnLoad(_root);
-            BaGameUiChrome.SetupOverlayCanvas(_root, 8999);
+            BaUi.EnsureReady();
+            BaUiPanelHost.PurgeNamedRoots("BetterFines_StatusPanel_v1");
 
-            _panelRect = BaGameUiChrome.BuildPanel(_root.transform, BaGameUiChrome.PanelWidth, 120f, "FinesPanel", out var header);
-            _panelRect.anchorMin = _panelRect.anchorMax = Vector2.zero;
-            _panelRect.pivot = Vector2.zero;
+            var built = BaUi.Overlay(RootName, CanvasSortOrder)
+                .Dock(BaDock.BottomLeft)
+                .Panel(BaPanelRecipe.ActionPanel, BaUiLayout.PanelWidth, height: ComputePanelHeight(1, 1, false))
+                .Header(h => h.TitleLeft(ModUiText.FinesPanelTitle))
+                .Body(_ => { })
+                .Build();
 
-            var titleGo = new GameObject("Title", typeof(RectTransform));
-            titleGo.transform.SetParent(header, false);
-            var titleRect = titleGo.GetComponent<RectTransform>();
-            titleRect.anchorMin = Vector2.zero;
-            titleRect.anchorMax = Vector2.one;
-            titleRect.offsetMin = new Vector2(18f, 7f);
-            titleRect.offsetMax = new Vector2(-18f, -7f);
-            _titleLabel = titleGo.AddComponent<TextMeshProUGUI>();
-            BaGameUiChrome.ApplyTitleStyle(_titleLabel, 1f);
+            _root = built.Root;
+            _panelRect = built.Panel;
+            _titleLabel = built.Header.Find("Title")?.GetComponent<TextMeshProUGUI>();
 
-            var bodyGo = new GameObject("Body", typeof(RectTransform));
-            bodyGo.transform.SetParent(_panelRect, false);
-            var bodyRect = bodyGo.GetComponent<RectTransform>();
-            bodyRect.anchorMin = Vector2.zero;
-            bodyRect.anchorMax = Vector2.one;
-            bodyRect.offsetMin = new Vector2(18f, 10f);
-            bodyRect.offsetMax = new Vector2(-18f, -56f);
-            _bodyLabel = bodyGo.AddComponent<TextMeshProUGUI>();
-            BaGameUiChrome.ApplyBodyStyle(_bodyLabel, 1f);
+            var bodyRect = built.Body;
+            var bodyTextGo = new GameObject("BodyText", typeof(RectTransform));
+            bodyTextGo.transform.SetParent(bodyRect, false);
+            var bodyTextRect = bodyTextGo.GetComponent<RectTransform>();
+            bodyTextRect.anchorMin = Vector2.zero;
+            bodyTextRect.anchorMax = Vector2.one;
+            bodyTextRect.offsetMin = new Vector2(0f, 0f);
+            bodyTextRect.offsetMax = new Vector2(0f, 0f);
+            _bodyLabel = bodyTextGo.AddComponent<TextMeshProUGUI>();
+            BaUiControls.ApplyBodyLabelStyle(_bodyLabel, built.Scale);
             _bodyLabel.enableWordWrapping = true;
             _bodyLabel.richText = true;
+            _bodyLabel.alignment = TextAlignmentOptions.TopLeft;
 
+            DisableInteraction(_root);
+            BaUi.ApplyLayer(_root);
+
+            _lastPanelHeight = 0f;
             _root.SetActive(false);
             _lastVisible = false;
+            ModLog.Info("Fines status panel created (" + RootName + ").");
         }
 
         internal static void UpdateDisplay()
@@ -82,14 +93,15 @@ namespace BetterFines
             }
 
             var title = ModUiText.FormatFinesPanelTitle(FineRecordStore.ActiveCount);
-            if (_titleLabel.text != title)
+            if (_titleLabel != null && _titleLabel.text != title)
                 _titleLabel.text = title;
 
             var body = BuildBodyText();
             if (body != _lastBody)
             {
                 _lastBody = body;
-                _bodyLabel.text = body;
+                if (_bodyLabel != null)
+                    _bodyLabel.text = body;
             }
         }
 
@@ -111,8 +123,20 @@ namespace BetterFines
             _bodyLabel = null;
             _lastVisible = false;
             _lastBody = string.Empty;
+            _lastPanelHeight = 0f;
             _cachedVooglePanel = null;
             _nextVoogleLookupAt = 0f;
+        }
+
+        private static void DestroyIfStale()
+        {
+            if (_root == null)
+                return;
+
+            if (!BaUiPanelHost.ShouldRecreate(_root, RootName))
+                return;
+
+            Destroy();
         }
 
         private static bool ShouldShow()
@@ -135,12 +159,27 @@ namespace BetterFines
             if (RecidivismService.IsLicenseSuspended)
                 summaryLines++;
 
-            var bodyHeight = Mathf.Max(1, activeCount) * RowHeight + summaryLines * SummaryLineHeight + 8f;
-            var panelHeight = BaGameUiChrome.HeaderHeight + bodyHeight + 12f;
-            if (_panelRect.sizeDelta.y != panelHeight)
-                _panelRect.sizeDelta = new Vector2(BaGameUiChrome.PanelWidth, panelHeight);
+            var panelHeight = ComputePanelHeight(activeCount, summaryLines, RecidivismService.IsLicenseSuspended);
+            if (!Mathf.Approximately(_lastPanelHeight, panelHeight))
+            {
+                _lastPanelHeight = panelHeight;
+                _panelRect.sizeDelta = new Vector2(BaUiLayout.PanelWidth, panelHeight);
+                BaUiChrome.RestorePanelChrome(_panelRect, BaUiLayout.PanelWidth, 0f);
+            }
 
             _panelRect.anchoredPosition = ResolveScreenPosition();
+        }
+
+        private static float ComputePanelHeight(int activeCount, int summaryLines, bool licenseSuspended)
+        {
+            if (licenseSuspended && activeCount <= 0)
+                summaryLines = Mathf.Max(summaryLines, 1);
+
+            var bodyHeight = Mathf.Max(1, activeCount) * RowHeight + summaryLines * SummaryLineHeight + 8f;
+            return BaUiLayout.HeaderHeight
+                   + BaUiLayout.BodyTopPadding
+                   + BaUiLayout.BodyBottomPadding
+                   + bodyHeight;
         }
 
         private static Vector2 ResolveScreenPosition()
@@ -149,11 +188,11 @@ namespace BetterFines
             if (vooglePanel != null)
             {
                 var y = vooglePanel.anchoredPosition.y + vooglePanel.rect.height + PanelGapAboveVoogle;
-                return new Vector2(BaGameUiChrome.ScreenMarginX, y);
+                return new Vector2(BaUiLayout.ScreenMarginX, y);
             }
 
-            var fallbackY = BaGameUiChrome.ScreenMarginMinY + DefaultVoogleHeight + PanelGapAboveVoogle;
-            return BaGameUiChrome.GetFallbackScreenPosition(fallbackY);
+            var fallbackY = BaUiLayout.ScreenMarginMinY + DefaultVoogleHeight + PanelGapAboveVoogle;
+            return BaUiLayout.GetScreenPosition(fallbackY);
         }
 
         private static RectTransform FindVooglePanelRect()
@@ -166,11 +205,12 @@ namespace BetterFines
 
             _nextVoogleLookupAt = Time.unscaledTime + 2f;
 
-            var root = GameObject.Find("VoogleRoute_HudRoot_v55");
+            var root = GameObject.Find("VoogleRoute_ActionPanel_v85")
+                       ?? GameObject.Find("VoogleRoute_HudRoot_v55");
             if (root == null)
                 return null;
 
-            var navPanel = root.transform.Find("NavPanel");
+            var navPanel = root.transform.Find("Panel") ?? root.transform.Find("NavPanel");
             _cachedVooglePanel = navPanel != null ? navPanel.GetComponent<RectTransform>() : null;
             return _cachedVooglePanel;
         }
@@ -222,6 +262,17 @@ namespace BetterFines
                 return 0;
 
             return RecidivismService.GetSurchargePercent(activeCount);
+        }
+
+        private static void DisableInteraction(GameObject root)
+        {
+            var raycaster = root.GetComponent<GraphicRaycaster>();
+            if (raycaster != null)
+                Object.Destroy(raycaster);
+
+            var group = root.GetComponent<CanvasGroup>() ?? root.AddComponent<CanvasGroup>();
+            group.interactable = false;
+            group.blocksRaycasts = false;
         }
     }
 }

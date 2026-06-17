@@ -1,3 +1,6 @@
+using Capisoft.Lib.BaUnifiedUI.Assets;
+using Capisoft.Lib.BaUnifiedUI.Chrome;
+using Capisoft.Lib.BaUnifiedUI.Controls;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -38,11 +41,11 @@ namespace BetterFines
             if (_root != null)
                 return;
 
-            BaGameUiChrome.EnsureInitialized();
+            BaUiAssets.EnsureInitialized();
 
             _root = new GameObject(RootName);
             Object.DontDestroyOnLoad(_root);
-            BaGameUiChrome.SetupOverlayCanvas(_root, 9101);
+            BaUiChrome.SetupOverlayCanvas(_root, 9101, interactive: false);
             _canvas = _root.GetComponent<Canvas>();
 
             _panel = new GameObject("Panel", typeof(RectTransform));
@@ -56,7 +59,7 @@ namespace BetterFines
 
             _panelImage = _panel.AddComponent<Image>();
             _panelImage.raycastTarget = false;
-            BaGameUiChrome.ApplyPanelBackground(_panelImage);
+            BaUiAssets.ApplyPanelBg(_panelImage);
 
             var labelGo = new GameObject("Label", typeof(RectTransform));
             labelGo.transform.SetParent(_panel.transform, false);
@@ -68,7 +71,7 @@ namespace BetterFines
             labelRect.offsetMax = new Vector2(-LabelPaddingX, -LabelPaddingY);
 
             _label = labelGo.AddComponent<TextMeshProUGUI>();
-            BaGameUiChrome.ApplyWarningBannerStyle(_label);
+            BaUiControls.ApplyWarningBannerLabel(_label);
 
             SetVisible(false);
         }
@@ -206,7 +209,7 @@ namespace BetterFines
             if (_panel != null)
                 _panel.SetActive(true);
             if (_panelImage != null)
-                BaGameUiChrome.ApplyPanelBackground(_panelImage);
+                BaUiAssets.ApplyPanelBg(_panelImage);
             if (_label != null)
                 _label.enabled = true;
             if (_canvas != null)

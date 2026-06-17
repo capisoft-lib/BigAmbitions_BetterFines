@@ -1,0 +1,12 @@
+{
+  "name": "Better Fines",
+  "id": "BetterFines",
+  "version": "0.11.3",
+  "gameVersion": "0.11",
+  "author": "capisoft-lib",
+  "distribution": "steam-workshop",
+  "sourceUrl": "https://github.com/capisoft-lib/BigAmbitions_BetterFines",
+  "manifestUrl": "https://raw.githubusercontent.com/capisoft-lib/BigAmbitions_BetterFines/main/latest.json",
+  "changelogUrl": "https://github.com/capisoft-lib/BigAmbitions_BetterFines/blob/main/CHANGELOG.md",
+  "releaseNotes": "0.11.3: LIB_BaUnifiedUI bundled; mod options PlayerPrefs fix; per-save fine storage; Better Pedestrians bridge; optional advanced JSON. Requires LIB BA Player Location 0.11.1+."
+}

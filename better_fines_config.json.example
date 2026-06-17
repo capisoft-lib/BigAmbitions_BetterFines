@@ -1,10 +1,6 @@
 {
-  "fine_amount_mode": "fixed",
-  "fine_margin_percent": 10,
-  "speeding_enabled": true,
-  "wrong_way_enabled": true,
-  "red_light_enabled": true,
-  "red_light_orange_fine": false,
-  "visual_flash_enabled": true,
-  "license_revoke_enabled": true
+  "license_revoke_count": 10,
+  "recidivism_enabled": true,
+  "fine_lifetime_days": 5,
+  "log_enabled": false
 }

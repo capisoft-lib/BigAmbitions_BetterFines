@@ -1,3 +1,4 @@
+using Capisoft.Lib.BaUnifiedUI.Chrome;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -99,11 +100,9 @@ namespace BetterFines
             if (_root != null)
                 return;
 
-            BaGameUiChrome.EnsureInitialized();
-
             _root = new GameObject(RootName);
             Object.DontDestroyOnLoad(_root);
-            BaGameUiChrome.SetupOverlayCanvas(_root, 9200);
+            BaUiChrome.SetupOverlayCanvas(_root, 9200, interactive: false);
 
             var overlayGo = new GameObject("Flash", typeof(RectTransform));
             overlayGo.transform.SetParent(_root.transform, false);

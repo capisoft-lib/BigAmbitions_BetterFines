@@ -27,7 +27,7 @@ namespace BetterFines
             Object.Destroy(host);
         }
 
-        private static void EnsureRunning()
+        internal static void EnsureRunning()
         {
             if (_instance != null)
                 return;

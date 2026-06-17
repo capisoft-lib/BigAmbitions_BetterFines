@@ -34,6 +34,7 @@ secrets/
 
 # Player-local mod data
 better_fines_config.json
+active_fines_*.json
 
 # Debug / extraction artifacts
 tools/debug-dumps/

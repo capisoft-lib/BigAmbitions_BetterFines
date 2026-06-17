@@ -10,32 +10,31 @@ namespace BetterFines
 {
     internal static class FineRecordStore
     {
-        private const string StateFilePrefix = "active_fines_";
-        private const string StateFileSuffix = ".json";
+        private const string ModDataKey = "BetterFines.activeFines.v1";
+        private const string LegacyStateFilePrefix = "active_fines_";
+        private const string LegacyStateFileSuffix = ".json";
+        private const int MaxFineLifetimeDaysSanity = 30;
 
         private static readonly List<ActiveFineRecord> Records = new List<ActiveFineRecord>();
         private static string _modRootPath;
-        private static string _statePath;
-        private static string _boundSaveKey;
-        private static bool _licenseSuspended;
+        private static string _boundSaveId;
 
         internal static IReadOnlyList<ActiveFineRecord> ActiveFines => Records;
-        internal static bool LicenseSuspended => _licenseSuspended;
+        internal static bool LicenseSuspended { get; private set; }
 
         internal static void Initialize(ModContext context)
         {
             _modRootPath = context != null ? context.ModRootPath : null;
             RebindSaveIfNeeded();
-            Load();
+            RemoveLegacyModFolderFiles();
         }
 
         internal static void Shutdown()
         {
-            Save();
+            Persist();
             Records.Clear();
-            _licenseSuspended = false;
-            _boundSaveKey = null;
-            _statePath = null;
+            LicenseSuspended = false;
+            _boundSaveId = null;
             _modRootPath = null;
         }
 
@@ -43,15 +42,15 @@ namespace BetterFines
         {
             RebindSaveIfNeeded();
 
-            var wasSuspended = _licenseSuspended;
+            var wasSuspended = LicenseSuspended;
             var countBefore = Records.Count;
             PurgeExpired();
 
             if (!wasSuspended || Records.Count > 0)
                 return;
 
-            _licenseSuspended = false;
-            Save();
+            LicenseSuspended = false;
+            Persist();
 
             if (countBefore > 0)
                 FineService.TrySendLicenseRestoredMessage();
@@ -90,33 +89,27 @@ namespace BetterFines
                 Amount = amount,
                 ExpiresDay = issuedDay + Mathf.Max(1, lifetimeDays)
             });
-            Save();
+            Persist();
         }
 
         internal static void SetLicenseSuspended(bool suspended)
         {
-            if (_licenseSuspended == suspended)
+            if (LicenseSuspended == suspended)
                 return;
 
-            _licenseSuspended = suspended;
-            Save();
+            LicenseSuspended = suspended;
+            Persist();
         }
 
         private static void RebindSaveIfNeeded()
         {
-            var saveKey = ResolveSaveKey();
-            if (saveKey == _boundSaveKey)
+            var saveId = ResolveSaveId();
+            if (saveId == _boundSaveId)
                 return;
 
-            if (!string.IsNullOrEmpty(_boundSaveKey))
-                Save();
-
-            _boundSaveKey = saveKey;
-            _statePath = string.IsNullOrEmpty(_modRootPath)
-                ? null
-                : Path.Combine(_modRootPath, StateFilePrefix + saveKey + StateFileSuffix);
             Records.Clear();
-            _licenseSuspended = false;
+            LicenseSuspended = false;
+            _boundSaveId = saveId;
             Load();
         }
 
@@ -138,39 +131,28 @@ namespace BetterFines
             }
 
             if (removed)
-                Save();
+                Persist();
         }
 
-        private static string ResolveSaveKey()
+        private static string ResolveSaveId()
         {
             try
             {
                 var save = SaveGameManager.Current;
                 if (save == null)
-                    return "unknown";
+                    return null;
 
-                var type = save.GetType();
-                foreach (var name in new[] { "SaveName", "saveName", "Name", "FileName", "Id", "GUID" })
-                {
-                    var prop = type.GetProperty(name);
-                    if (prop == null)
-                        continue;
+                var characterId = save.characterId;
+                var saveName = save.SaveGameName;
+                if (string.IsNullOrWhiteSpace(characterId) && string.IsNullOrWhiteSpace(saveName))
+                    return null;
 
-                    var value = prop.GetValue(save);
-                    if (value == null)
-                        continue;
-
-                    var text = value.ToString();
-                    if (!string.IsNullOrWhiteSpace(text) && text != "0")
-                        return Sanitize(text);
-                }
+                return Sanitize(characterId ?? "character") + "__" + Sanitize(saveName ?? "save");
             }
             catch
             {
-                // Save metadata not available yet.
+                return null;
             }
-
-            return "default";
         }
 
         private static string Sanitize(string value)
@@ -183,44 +165,120 @@ namespace BetterFines
         private static void Load()
         {
             Records.Clear();
-            _licenseSuspended = false;
+            LicenseSuspended = false;
 
-            if (string.IsNullOrEmpty(_statePath) || !File.Exists(_statePath))
+            if (TryLoadFromModData())
+            {
+                ModLog.Info("Loaded active fine records from save modData.");
                 return;
+            }
+
+            if (TryMigrateLegacyFile())
+            {
+                ModLog.Info("Migrated active fine records from legacy mod-folder file into save modData.");
+                return;
+            }
+
+            ModLog.Info("No active fine records for current save.");
+        }
+
+        private static bool TryLoadFromModData()
+        {
+            var save = SaveGameManager.Current;
+            if (save?.modData == null ||
+                !save.modData.TryGetValue(ModDataKey, out var json) ||
+                string.IsNullOrWhiteSpace(json))
+                return false;
 
             try
             {
-                ApplyJson(File.ReadAllText(_statePath));
-                ModLog.Info("Loaded active fine records.");
+                ApplyJson(json);
+                return true;
             }
             catch (Exception ex)
             {
-                ModLog.Warn("Failed to read active fine records: " + ex.Message);
+                ModLog.Warn("Failed to read active fine records from save modData: " + ex.Message);
+                return false;
             }
         }
 
-        private static void Save()
+        private static bool TryMigrateLegacyFile()
         {
-            if (string.IsNullOrEmpty(_statePath))
+            if (string.IsNullOrEmpty(_modRootPath) || string.IsNullOrEmpty(_boundSaveId))
+                return false;
+
+            var legacyPath = Path.Combine(_modRootPath, LegacyStateFilePrefix + _boundSaveId + LegacyStateFileSuffix);
+            if (!File.Exists(legacyPath))
+                return false;
+
+            try
+            {
+                var json = File.ReadAllText(legacyPath);
+                var fileSaveKey = ReadString(json, "save_key", 0, string.Empty);
+                if (string.Equals(fileSaveKey, "default", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(fileSaveKey, "unknown", StringComparison.OrdinalIgnoreCase))
+                    return false;
+
+                if (!string.IsNullOrEmpty(fileSaveKey) &&
+                    !string.Equals(fileSaveKey, _boundSaveId, StringComparison.Ordinal))
+                    return false;
+
+                ApplyJson(json);
+                if (Records.Count == 0 && !LicenseSuspended)
+                    return false;
+
+                Persist();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                ModLog.Warn("Failed to migrate legacy active fine records: " + ex.Message);
+                return false;
+            }
+        }
+
+        private static void RemoveLegacyModFolderFiles()
+        {
+            if (string.IsNullOrEmpty(_modRootPath) || !Directory.Exists(_modRootPath))
                 return;
 
             try
             {
-                File.WriteAllText(_statePath, BuildJson(), Encoding.UTF8);
+                foreach (var path in Directory.GetFiles(_modRootPath, LegacyStateFilePrefix + "*" + LegacyStateFileSuffix))
+                {
+                    File.Delete(path);
+                    ModLog.Info("Removed legacy mod-folder fine state: " + Path.GetFileName(path));
+                }
             }
             catch (Exception ex)
             {
-                ModLog.Warn("Failed to write active fine records: " + ex.Message);
+                ModLog.Warn("Failed to remove legacy mod-folder fine state files: " + ex.Message);
+            }
+        }
+
+        private static void Persist()
+        {
+            var save = SaveGameManager.Current;
+            if (save == null || string.IsNullOrEmpty(_boundSaveId))
+                return;
+
+            try
+            {
+                save.modData ??= new Dictionary<string, string>();
+                save.modData[ModDataKey] = BuildJson();
+            }
+            catch (Exception ex)
+            {
+                ModLog.Warn("Failed to write active fine records to save modData: " + ex.Message);
             }
         }
 
         private static string BuildJson()
         {
-            var inv = CultureInfo.InvariantCulture;
             var sb = new StringBuilder();
             sb.Append("{\n");
-            sb.Append("  \"save_key\": \"").Append(Escape(_boundSaveKey ?? "default")).Append("\",\n");
-            sb.Append("  \"license_suspended\": ").Append(_licenseSuspended ? "true" : "false").Append(",\n");
+            sb.Append("  \"save_key\": \"").Append(Escape(_boundSaveId ?? string.Empty)).Append("\",\n");
+            sb.Append("  \"license_suspended\": ").Append(LicenseSuspended ? "true" : "false").Append(",\n");
             sb.Append("  \"fines\": [\n");
             for (var i = 0; i < Records.Count; i++)
             {
@@ -243,7 +301,7 @@ namespace BetterFines
 
         private static void ApplyJson(string json)
         {
-            _licenseSuspended = ReadBool(json, "license_suspended", false);
+            LicenseSuspended = ReadBool(json, "license_suspended", false);
 
             var idx = 0;
             while (true)
@@ -256,18 +314,38 @@ namespace BetterFines
                 if (!Enum.TryParse(type, true, out ViolationType violationType))
                     violationType = ViolationType.Speeding;
 
+                var issuedDay = ReadInt(json, "issued_day", start, 0);
+                var amount = ReadInt(json, "amount", start, 0);
+                var expiresDay = ReadInt(json, "expires_day", start, 0);
+                if (!IsValidFineRecord(issuedDay, amount, expiresDay))
+                {
+                    idx = start + 6;
+                    continue;
+                }
+
                 Records.Add(new ActiveFineRecord
                 {
                     Type = violationType,
-                    IssuedDay = ReadInt(json, "issued_day", start, 0),
+                    IssuedDay = issuedDay,
                     IssuedHour = ReadInt(json, "issued_hour", start, 0),
                     IssuedMinute = ReadInt(json, "issued_minute", start, 0),
-                    Amount = ReadInt(json, "amount", start, 0),
-                    ExpiresDay = ReadInt(json, "expires_day", start, 0)
+                    Amount = amount,
+                    ExpiresDay = expiresDay
                 });
 
                 idx = start + 6;
             }
+        }
+
+        private static bool IsValidFineRecord(int issuedDay, int amount, int expiresDay)
+        {
+            if (amount <= 0)
+                return false;
+
+            if (expiresDay <= issuedDay)
+                return false;
+
+            return expiresDay - issuedDay <= MaxFineLifetimeDaysSanity;
         }
 
         private static string Escape(string value) =>

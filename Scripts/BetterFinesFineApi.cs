@@ -5,6 +5,9 @@ namespace BetterFines.Public
     {
         public static bool TryChargePedestrianFine()
         {
+            if (!BetterPedestriansBridge.CanChargePedestrianFine())
+                return false;
+
             return FineService.TryChargeFine(
                 ViolationType.Pedestrian,
                 FineAmountResolver.Resolve(ViolationType.Pedestrian, BetterFinesConfig.FixedFineAmount));

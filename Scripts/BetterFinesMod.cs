@@ -23,6 +23,7 @@ namespace BetterFines
                 " | required_mod=LIB_BaPlayerLocation");
 
             BetterFinesConfig.EnsureReadyForRuntime(context);
+            BetterFinesOptionsScheduler.EnsureRunning();
             FineRecordStore.Initialize(context);
             DrivingLicenseEnforcer.Initialize();
             SpeedZone80Index.Initialize(context.ModRootPath);
