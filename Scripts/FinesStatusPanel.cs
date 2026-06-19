@@ -26,6 +26,7 @@ namespace BetterFines
         private static bool _lastVisible;
         private static string _lastBody = string.Empty;
         private static float _lastPanelHeight;
+        private static Vector2 _lastAnchoredPosition = new Vector2(float.NaN, float.NaN);
         private static RectTransform _cachedVooglePanel;
         private static float _nextVoogleLookupAt;
 
@@ -39,6 +40,7 @@ namespace BetterFines
             BaUiPanelHost.PurgeNamedRoots("BetterFines_StatusPanel_v1");
 
             var built = BaUi.Overlay(RootName, CanvasSortOrder)
+                .NonInteractive()
                 .Dock(BaDock.BottomLeft)
                 .Panel(BaPanelRecipe.ActionPanel, BaUiLayout.PanelWidth, height: ComputePanelHeight(1, 1, false))
                 .Header(h => h.TitleLeft(ModUiText.FinesPanelTitle))
@@ -63,12 +65,17 @@ namespace BetterFines
             _bodyLabel.richText = true;
             _bodyLabel.alignment = TextAlignmentOptions.TopLeft;
 
-            DisableInteraction(_root);
+            DisablePanelRaycasts(_panelRect);
             BaUi.ApplyLayer(_root);
 
             _lastPanelHeight = 0f;
+            _lastAnchoredPosition = new Vector2(float.NaN, float.NaN);
             _root.SetActive(false);
             _lastVisible = false;
+
+            if (BaUi.ShouldRebuildChrome)
+                BaUi.MarkRebuildHandled();
+
             ModLog.Info("Fines status panel created (" + RootName + ").");
         }
 
@@ -124,6 +131,7 @@ namespace BetterFines
             _lastVisible = false;
             _lastBody = string.Empty;
             _lastPanelHeight = 0f;
+            _lastAnchoredPosition = new Vector2(float.NaN, float.NaN);
             _cachedVooglePanel = null;
             _nextVoogleLookupAt = 0f;
         }
@@ -164,10 +172,15 @@ namespace BetterFines
             {
                 _lastPanelHeight = panelHeight;
                 _panelRect.sizeDelta = new Vector2(BaUiLayout.PanelWidth, panelHeight);
-                BaUiChrome.RestorePanelChrome(_panelRect, BaUiLayout.PanelWidth, 0f);
+                BaUiWidgets.RestoreDockedPanelChrome(_panelRect, BaUiLayout.PanelWidth);
             }
 
-            _panelRect.anchoredPosition = ResolveScreenPosition();
+            var position = ResolveScreenPosition();
+            if (!Approximately(_lastAnchoredPosition, position))
+            {
+                _lastAnchoredPosition = position;
+                _panelRect.anchoredPosition = position;
+            }
         }
 
         private static float ComputePanelHeight(int activeCount, int summaryLines, bool licenseSuspended)
@@ -264,15 +277,16 @@ namespace BetterFines
             return RecidivismService.GetSurchargePercent(activeCount);
         }
 
-        private static void DisableInteraction(GameObject root)
+        private static void DisablePanelRaycasts(RectTransform panel)
         {
-            var raycaster = root.GetComponent<GraphicRaycaster>();
-            if (raycaster != null)
-                Object.Destroy(raycaster);
+            if (panel == null)
+                return;
 
-            var group = root.GetComponent<CanvasGroup>() ?? root.AddComponent<CanvasGroup>();
-            group.interactable = false;
-            group.blocksRaycasts = false;
+            foreach (var graphic in panel.GetComponentsInChildren<Graphic>(true))
+                graphic.raycastTarget = false;
         }
+
+        private static bool Approximately(Vector2 a, Vector2 b) =>
+            Mathf.Approximately(a.x, b.x) && Mathf.Approximately(a.y, b.y);
     }
 }

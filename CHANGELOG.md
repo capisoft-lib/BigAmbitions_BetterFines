@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.11.4
+
+- **Fines HUD lag fix** — status panel no longer destroys/rebuilds every tick after the first ticket
+- **LIB_BaUnifiedUI 0.1.5 bundled** — `BaUiPanelHost` lifecycle fix for lazy HUD panels; `NonInteractive()` overlay builder
+- **Status panel polish** — docked chrome restore, cached position, raycast targets off on read-only HUD
+
 ## 0.11.3
 
 - **LIB_BaUnifiedUI bundled** — fines status panel and HUD chrome (no separate Workshop mod)

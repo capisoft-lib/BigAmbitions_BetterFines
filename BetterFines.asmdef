@@ -12,7 +12,6 @@
   "allowUnsafeCode": false,
   "overrideReferences": true,
   "precompiledReferences": [
-    "LIB_BaUnifiedUI.dll",
     "BigAmbitions.dll",
     "BigAmbitions.Legacy.dll",
     "BigAmbitions.ModAPI.dll",

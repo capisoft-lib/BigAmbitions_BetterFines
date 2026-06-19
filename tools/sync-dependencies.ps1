@@ -45,9 +45,12 @@ if (-not $uiSource) {
     throw "LIB_BaUnifiedUI.dll not found. Build LIB_BaUnifiedUI first (Unity Mod Builder or compile-install-lib-ba-unified-ui.ps1), then run tools/sync-dependencies.ps1."
 }
 
-$uiTarget = Join-Path $depsDir "LIB_BaUnifiedUI.dll"
+$uiTarget = Join-Path $depsDir "LIB_BaUnifiedUI.PlayerMode.dll"
+$legacyTarget = Join-Path $depsDir "LIB_BaUnifiedUI.dll"
+if (Test-Path $legacyTarget) { Remove-Item $legacyTarget -Force }
+if (Test-Path ($legacyTarget + ".meta")) { Remove-Item ($legacyTarget + ".meta") -Force }
 Copy-Item $uiSource $uiTarget -Force
-Write-Host "Copied LIB_BaUnifiedUI.dll"
+Write-Host "Copied LIB_BaUnifiedUI.PlayerMode.dll"
 Write-Host "  from: $uiSource"
 Write-Host "  to:   $uiTarget"
 Write-Host "Unity Mod Builder will include Dependencies DLLs in Output/BetterFines and ModsLocal."

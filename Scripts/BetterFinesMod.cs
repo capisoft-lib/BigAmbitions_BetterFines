@@ -2,6 +2,7 @@ using System;
 using System.Threading.Tasks;
 using BaPlayerLocation.Subscriber;
 using BAModAPI;
+using Capisoft.Lib.BaUnifiedUI.Fluent;
 using UnityEngine;
 
 [assembly: RegisterModClass(typeof(BetterFines.BetterFinesMod))]
@@ -38,6 +39,10 @@ namespace BetterFines
             _driverObject.AddComponent<BetterFinesDriver>();
             _driverObject.AddComponent<TrafficDataBootstrap>();
             _driverObject.AddComponent<TrafficLightDebugVisualizer>();
+
+            BaUi.EnsureReady();
+            if (BaUi.ShouldRebuildChrome)
+                BaUi.MarkRebuildHandled();
 
             ModLog.Info("BetterFines ready (speeding, red lights, wrong-way on by default).");
             return Task.CompletedTask;

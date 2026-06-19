@@ -6,13 +6,15 @@ using UnityEngine;
 namespace BetterFines.Editor
 {
     /// <summary>
-    /// Keeps <c>Dependencies/LIB_BaUnifiedUI.dll</c> in sync for Unity Mod Builder packaging.
-    /// Official ModPackager copies <c>Assets/Mods/BetterFines/Dependencies/*.dll</c> only.
+    /// Keeps bundled LIB_BaUnifiedUI player DLL in sync for Unity Mod Builder packaging.
+    /// Uses a distinct filename so Unity does not confuse it with LIB_BaUnifiedUI.asmdef.
     /// </summary>
     [InitializeOnLoad]
     public static class BetterFinesDependencySync
     {
-        private const string DestAssetPath = "Assets/Mods/BetterFines/Dependencies/LIB_BaUnifiedUI.dll";
+        internal const string BundledUiDllFileName = "LIB_BaUnifiedUI.PlayerMode.dll";
+        private const string LegacyBundledUiDllFileName = "LIB_BaUnifiedUI.dll";
+        private const string DestAssetPath = "Assets/Mods/BetterFines/Dependencies/" + BundledUiDllFileName;
 
         static BetterFinesDependencySync()
         {
@@ -57,11 +59,12 @@ namespace BetterFines.Editor
             if (source == null)
                 return false;
 
-            var destAbsolute = Path.Combine(projectRoot, "Assets", "Mods", "BetterFines", "Dependencies", "LIB_BaUnifiedUI.dll");
-            var destDir = Path.GetDirectoryName(destAbsolute);
-            if (!string.IsNullOrEmpty(destDir))
-                Directory.CreateDirectory(destDir);
+            var destDir = Path.Combine(projectRoot, "Assets", "Mods", "BetterFines", "Dependencies");
+            Directory.CreateDirectory(destDir);
 
+            RemoveLegacyBundledDll(destDir);
+
+            var destAbsolute = Path.Combine(destDir, BundledUiDllFileName);
             if (File.Exists(destAbsolute))
             {
                 var srcTime = File.GetLastWriteTimeUtc(source);
@@ -74,9 +77,21 @@ namespace BetterFines.Editor
             AssetDatabase.ImportAsset(DestAssetPath, ImportAssetOptions.ForceUpdate);
 
             if (forceLog)
-                Debug.Log("[BetterFines] Synced LIB_BaUnifiedUI.dll into Dependencies for Mod Builder.");
+                Debug.Log("[BetterFines] Synced " + BundledUiDllFileName + " into Dependencies for Mod Builder.");
 
             return true;
+        }
+
+        private static void RemoveLegacyBundledDll(string destDir)
+        {
+            var legacyDll = Path.Combine(destDir, LegacyBundledUiDllFileName);
+            if (!File.Exists(legacyDll))
+                return;
+
+            File.Delete(legacyDll);
+            var legacyMeta = legacyDll + ".meta";
+            if (File.Exists(legacyMeta))
+                File.Delete(legacyMeta);
         }
     }
 }
