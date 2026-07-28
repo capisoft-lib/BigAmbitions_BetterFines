@@ -1,3 +1,4 @@
+using System;
 using System.Text;
 using Capisoft.Lib.BaUnifiedUI.Chrome;
 using Capisoft.Lib.BaUnifiedUI.Controls;
@@ -29,6 +30,38 @@ namespace BetterFines
         private static Vector2 _lastAnchoredPosition = new Vector2(float.NaN, float.NaN);
         private static RectTransform _cachedVooglePanel;
         private static float _nextVoogleLookupAt;
+        private static bool _fallbackActive;
+        private static bool _fallbackFailureLogged;
+
+        internal static void UpdateDisplaySafe()
+        {
+            if (_fallbackActive)
+            {
+                UpdateFallbackDisplay();
+                return;
+            }
+
+            try
+            {
+                UpdateDisplay();
+            }
+            catch (Exception ex)
+            {
+                DestroyPrimary();
+                _fallbackActive = true;
+
+                if (!_fallbackFailureLogged)
+                {
+                    _fallbackFailureLogged = true;
+                    ModLog.Warn(
+                        "Unified UI fines panel failed; switched to compatibility HUD. " +
+                        ex.GetType().Name + ": " + ex.Message);
+                    Debug.LogException(ex);
+                }
+
+                UpdateFallbackDisplay();
+            }
+        }
 
         internal static void EnsureCreated()
         {
@@ -115,15 +148,24 @@ namespace BetterFines
         internal static void RefreshLocalizedText()
         {
             _lastBody = string.Empty;
-            UpdateDisplay();
+            FinesStatusFallbackPanel.InvalidateText();
+            UpdateDisplaySafe();
         }
 
         internal static void Destroy()
         {
-            if (_root == null)
-                return;
+            DestroyPrimary();
+            FinesStatusFallbackPanel.Destroy();
+            _fallbackActive = false;
+            _fallbackFailureLogged = false;
+        }
 
-            Object.Destroy(_root);
+        private static void DestroyPrimary()
+        {
+            var root = _root != null ? _root : GameObject.Find(RootName);
+            if (root != null)
+                UnityEngine.Object.Destroy(root);
+
             _root = null;
             _panelRect = null;
             _titleLabel = null;
@@ -134,6 +176,30 @@ namespace BetterFines
             _lastAnchoredPosition = new Vector2(float.NaN, float.NaN);
             _cachedVooglePanel = null;
             _nextVoogleLookupAt = 0f;
+        }
+
+        private static void UpdateFallbackDisplay()
+        {
+            var visible = ShouldShow();
+            if (!visible)
+            {
+                FinesStatusFallbackPanel.Hide();
+                return;
+            }
+
+            var activeCount = FineRecordStore.ActiveCount;
+            var summaryLines = 1;
+            if (RecidivismService.GetCurrentSurchargePercent() > 0 || GetDisplayedSurchargePercent() > 0)
+                summaryLines++;
+            if (RecidivismService.IsLicenseSuspended)
+                summaryLines++;
+
+            FinesStatusFallbackPanel.UpdateDisplay(
+                ModUiText.FormatFinesPanelTitle(activeCount),
+                BuildBodyText(),
+                activeCount,
+                summaryLines,
+                RecidivismService.IsLicenseSuspended);
         }
 
         private static void DestroyIfStale()

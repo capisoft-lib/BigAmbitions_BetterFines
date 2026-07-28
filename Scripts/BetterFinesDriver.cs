@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 namespace BetterFines
@@ -6,6 +7,7 @@ namespace BetterFines
     {
         private readonly ViolationTracker _tracker = new ViolationTracker();
         private float _nextTick;
+        private bool _hudFailureLogged;
 
         private void OnDestroy() => _tracker.Reset();
 
@@ -21,7 +23,22 @@ namespace BetterFines
 
             ModUiText.PollLanguageChange();
             FineRecordStore.Tick();
-            FinesStatusPanel.UpdateDisplay();
+            try
+            {
+                FinesStatusPanel.UpdateDisplaySafe();
+            }
+            catch (Exception ex)
+            {
+                if (!_hudFailureLogged)
+                {
+                    _hudFailureLogged = true;
+                    ModLog.Warn(
+                        "Fines HUD update failed; traffic enforcement will continue. " +
+                        ex.GetType().Name + ": " + ex.Message);
+                    Debug.LogException(ex);
+                }
+            }
+
             _tracker.Tick();
         }
 

@@ -1,12 +1,12 @@
 {
   "name": "Better Fines",
   "id": "BetterFines",
-  "version": "0.11.4",
+  "version": "0.11.5",
   "gameVersion": "0.11",
   "author": "capisoft-lib",
   "distribution": "steam-workshop",
   "sourceUrl": "https://github.com/capisoft-lib/BigAmbitions_BetterFines",
   "manifestUrl": "https://raw.githubusercontent.com/capisoft-lib/BigAmbitions_BetterFines/main/latest.json",
   "changelogUrl": "https://github.com/capisoft-lib/BigAmbitions_BetterFines/blob/main/CHANGELOG.md",
-  "releaseNotes": "0.11.4: Fixes severe FPS lag after first ticket (fines HUD panel rebuild loop). Bundles LIB BA Unified UI 0.1.5. Requires LIB BA Player Location 0.11.1+."
+  "releaseNotes": "0.11.5: Adds an independent compatibility HUD when another mod loads an incompatible LIB BA Unified UI, and keeps traffic enforcement running if HUD rendering fails. Bundles LIB BA Unified UI 0.1.9. Requires LIB BA Player Location 0.11.1+."
 }

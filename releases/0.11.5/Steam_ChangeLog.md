@@ -1,0 +1,3 @@
+- **First-ticket compatibility fix** — if another mod loads an incompatible UI library, Better Fines now switches automatically to an independent fines HUD
+- **Traffic enforcement stays active** — a HUD rendering error can no longer stop subsequent violation checks
+- **LIB BA Unified UI 0.1.9 bundled** — first-party mods now ship the same synchronized UI DLL

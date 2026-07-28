@@ -16,7 +16,6 @@ if (-not $SdkRoot) {
 
 function Resolve-SourceDll {
     param(
-        [Parameter(Mandatory = $true)][string] $FileName,
         [Parameter(Mandatory = $true)][string[]] $RelativeCandidates
     )
 
@@ -27,17 +26,10 @@ function Resolve-SourceDll {
         }
     }
 
-    $modsLocal = Join-Path $env:USERPROFILE "AppData\LocalLow\Hovgaard Games\Big Ambitions\ModsLocal"
-    $fromModsLocal = Join-Path $modsLocal ($FileName -replace '\.dll$', '')
-    $fromModsLocal = Join-Path $fromModsLocal $FileName
-    if (Test-Path $fromModsLocal) {
-        return $fromModsLocal
-    }
-
     return $null
 }
 
-$uiSource = Resolve-SourceDll "LIB_BaUnifiedUI.dll" @(
+$uiSource = Resolve-SourceDll @(
     "Output\LIB_BaUnifiedUI\LIB_BaUnifiedUI.dll",
     "Assets\Mods\LIB_BaUnifiedUI\LIB_BaUnifiedUI.dll"
 )

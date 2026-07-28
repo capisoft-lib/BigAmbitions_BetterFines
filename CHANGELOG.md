@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.11.5
+
+- **First-ticket compatibility HUD** — automatically falls back to a Unity/TMP-only fines panel when another mod loads an incompatible `LIB_BaUnifiedUI`
+- **Enforcement isolation** — HUD exceptions no longer prevent subsequent traffic checks
+- **LIB_BaUnifiedUI 0.1.9 bundled** — all first-party consumer packages receive the same player DLL
+- **Deterministic dependency sync** — compares DLL content instead of timestamps and no longer copies a potentially stale `ModsLocal` build
+
 ## 0.11.4
 
 - **Fines HUD lag fix** — status panel no longer destroys/rebuilds every tick after the first ticket
